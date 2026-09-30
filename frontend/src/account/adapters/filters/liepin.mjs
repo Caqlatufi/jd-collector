@@ -1,0 +1,2 @@
+// Pure platform recipe names. PNG-calibrated steps live in ignored runtime, never DOM selectors.
+export default {platform: 'LIEPIN', steps: ["search.input","search.submit","region.open","region.district","region.area","experience.open","experience.select","salary.open","salary.select","salary.min","salary.max","salary.confirm","size.open","size.select","size.more","size.confirm","type.open","type.select","menu.close"]};

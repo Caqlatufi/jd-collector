@@ -1,0 +1,10 @@
+bootJar { enabled = false }
+jar { enabled = true }
+
+dependencies {
+    api project(':common')
+    api project(':company')
+    api project(':posting')
+    api project(':pipeline')
+    api project(':interview')
+}

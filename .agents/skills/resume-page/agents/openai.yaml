@@ -1,0 +1,4 @@
+interface:
+  display_name: "简历页面"
+  short_description: "将 Markdown 简历制作成可打印的 Vue A4 页面"
+  default_prompt: "使用 $resume-page 将简历 Markdown 制作或更新为高质量 Vue A4 页面，并检查打印分页。"

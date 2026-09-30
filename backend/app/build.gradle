@@ -1,0 +1,44 @@
+bootJar {
+    enabled = true
+    mainClass.set('com.jd.app.Application')
+}
+
+jar {
+    enabled = true
+}
+
+dependencies {
+    api project(':common')
+    api project(':company')
+    api project(':resume')
+    api project(':posting')
+    api project(':pipeline')
+    api project(':interview')
+    api project(':dashboard')
+    api project(':export')
+    api project(':account')
+    api project(':criteria')
+    api project(':recognition')
+
+    runtimeOnly 'com.mysql:mysql-connector-j'
+    runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
+    testRuntimeOnly 'com.h2database:h2'
+}
+
+def frontendDist = rootProject.file('../frontend/dist')
+
+tasks.named('processResources') {
+    // Copy must not retain assets removed from the source, including old personal photos.
+    doFirst {
+        def output = destinationDir.toPath().toAbsolutePath().normalize()
+        def build = layout.buildDirectory.get().asFile.toPath().toAbsolutePath().normalize()
+        def workspace = rootProject.projectDir.toPath().toAbsolutePath().normalize()
+        if (!output.startsWith(build) || !output.startsWith(workspace) || output == build) {
+            throw new GradleException('Resource output must stay inside the backend build directory')
+        }
+        project.delete(destinationDir)
+    }
+    from(frontendDist) {
+        into 'static'
+    }
+}

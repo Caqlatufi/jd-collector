@@ -1,0 +1,302 @@
+{
+  "schemaVersion": 1,
+  "formVersion": 2,
+  "title": "JD门槛",
+  "description": "选择适合的答案；每题最后都可以选“其他”自由填写。保存即采用所填答案，未填项不作限制结论。",
+  "baselineRules": [],
+  "agentNotes": [],
+  "sections": [
+    {
+      "id": "salary",
+      "title": "薪资",
+      "notes": [],
+      "fields": [
+        {
+          "id": "salary-1",
+          "label": "期望月薪",
+          "value": null,
+          "hint": "金额为税前月薪。",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "12K以上",
+            "15K以上",
+            "18K以上",
+            "20K以上",
+            "25K以上"
+          ]
+        },
+        {
+          "id": "salary-6",
+          "label": "没有写薪资的岗位，还看吗？",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "不收集",
+            "先保留，问清再决定",
+            "只看特别感兴趣的公司"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "work",
+      "title": "工作安排",
+      "notes": [],
+      "fields": [
+        {
+          "id": "work-1",
+          "label": "工作形式",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "全职",
+            "全职或合同项目",
+            "也考虑兼职"
+          ]
+        },
+        {
+          "id": "work-2",
+          "label": "休息安排",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "必须双休",
+            "双休，偶尔周末加班可以",
+            "可以接受大小周"
+          ]
+        },
+        {
+          "id": "work-3",
+          "label": "日常加班",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "不接受常态加班",
+            "偶尔加班可以",
+            "看薪资和工作内容"
+          ]
+        },
+        {
+          "id": "work-5",
+          "label": "夜班或夜间值班",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "不值夜班",
+            "偶尔轮值可以",
+            "可以接受"
+          ]
+        },
+        {
+          "id": "work-6",
+          "label": "出差",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "不出差",
+            "偶尔短期出差可以",
+            "可以接受"
+          ]
+        },
+        {
+          "id": "work-7",
+          "label": "客户现场驻场",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "不接受",
+            "短期可以",
+            "可以接受"
+          ]
+        },
+        {
+          "id": "work-8",
+          "label": "签约和外包",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "只接受公司直签",
+            "可第三方签约，不接受外包或派遣",
+            "外包或派遣也可考虑"
+          ]
+        },
+        {
+          "id": "work-10",
+          "label": "团队要求",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "希望有产品、测试等配合",
+            "小团队可以，但不做唯一开发",
+            "团队大小不限制"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "role",
+      "title": "岗位与通勤",
+      "notes": [],
+      "fields": [
+        {
+          "id": "commute-1",
+          "label": "通勤方式",
+          "value": null,
+          "hint": "请填写实际出发地、通勤方式与单程时间要求。",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "地铁或电动车，有一种达标即可",
+            "地铁也必须一小时内",
+            "主要骑电动车"
+          ]
+        },
+        {
+          "id": "commute-7",
+          "label": "办公方式",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "线下办公即可",
+            "更希望混合办公",
+            "只考虑远程",
+            "都可以"
+          ]
+        },
+        {
+          "id": "ability-1",
+          "label": "优先看几年经验的岗位？",
+          "value": null,
+          "hint": "学历和真实能力硬要求仍需逐岗核实。",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "1–3年、3–5年为主",
+            "匹配的5年以上也看看",
+            "不按年限筛，先看职责"
+          ]
+        },
+        {
+          "id": "ability-4",
+          "label": "非 Java 后端岗位",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "Java为主",
+            "Python或Go也可以，允许入职后熟悉",
+            "语言不限，看实际工作"
+          ]
+        },
+        {
+          "id": "ability-5",
+          "label": "前端工作占比",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "后端为主，少量前端",
+            "前后端各半也可以",
+            "前端为主也可以"
+          ]
+        },
+        {
+          "id": "ability-10",
+          "label": "什么时候能到岗？",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "随时到岗",
+            "Offer后1周内",
+            "Offer后2周内",
+            "Offer后1个月内"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "preferences",
+      "title": "其他偏好",
+      "notes": [],
+      "fields": [
+        {
+          "id": "additional-1",
+          "label": "优先看重什么？",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "薪资",
+            "通勤",
+            "技术成长和工作内容",
+            "稳定性与工作强度",
+            "综合考虑"
+          ]
+        },
+        {
+          "id": "additional-4",
+          "label": "特别想关注的公司",
+          "value": null,
+          "hint": "",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "沿用之前讨论的重点公司",
+            "暂无指定公司"
+          ]
+        },
+        {
+          "id": "collection-5",
+          "label": "希望收集多少个合适的岗位？",
+          "value": null,
+          "hint": "不为凑数放宽条件。",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "20个",
+            "40个",
+            "60个",
+            "不限数量，质量优先"
+          ]
+        },
+        {
+          "id": "additional-6",
+          "label": "还有其他要求吗？",
+          "value": null,
+          "hint": "也可在这里补充不考虑的公司或行业。",
+          "kind": "待确定",
+          "status": "PENDING",
+          "options": [
+            "暂无其他要求"
+          ]
+        }
+      ]
+    }
+  ]
+}

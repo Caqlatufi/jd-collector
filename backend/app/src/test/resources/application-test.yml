@@ -1,0 +1,20 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:jd_collector_test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_LOWER=TRUE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  jackson:
+    time-zone: Asia/Shanghai
+
+logging:
+  level:
+    root: WARN
+
+jd-collector:
+  recognition:
+    enabled: false

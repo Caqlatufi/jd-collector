@@ -1,0 +1,47 @@
+server:
+  address: 127.0.0.1
+  port: 7890
+  servlet:
+    context-path: /jd-collector
+
+spring:
+  application:
+    name: jd-collector
+  datasource:
+    url: ${JD_COLLECTOR_DB_URL:jdbc:mysql://127.0.0.1:3306/jd_collector?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
+    username: ${JD_COLLECTOR_DB_USERNAME:root}
+    password: ${JD_COLLECTOR_DB_PASSWORD:}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  jpa:
+    open-in-view: false
+    hibernate:
+      ddl-auto: update
+    properties:
+      hibernate:
+        format_sql: true
+  jackson:
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null
+
+logging:
+  level:
+    com.jd: INFO
+
+jd-collector:
+  criteria-file: ${JD_COLLECTOR_CRITERIA_FILE:}
+  resume:
+    starter-file: ${JD_RESUME_STARTER_FILE:}
+    photo-file: ${JD_RESUME_PHOTO_FILE:}
+    legacy-photo-route: ${JD_RESUME_LEGACY_PHOTO_ROUTE:/resume/photo.png}
+  recognition:
+    project-root: ${JD_COLLECTOR_PROJECT_DIR:}
+    work-directory: ${JD_RECOGNITION_WORK_DIRECTORY:}
+    enabled: ${JD_RECOGNITION_ENABLED:true}
+    poll-ms: 5000
+    concurrency: 2
+    max-attempts: 2
+    timeout-seconds: 120
+    node: ${JD_RECOGNITION_NODE:node}
+    codex: ${JD_RECOGNITION_CODEX:}
+    model: ${JD_RECOGNITION_MODEL:gpt-6-astra}
+    reasoning-effort: ${JD_RECOGNITION_REASONING_EFFORT:medium}

@@ -1,0 +1,10 @@
+bootJar { enabled = false }
+jar { enabled = true }
+
+dependencies {
+    api project(':common')
+}
+
+tasks.named('processResources') {
+    from(rootProject.file('../config/resume-starter.example.md'))
+}

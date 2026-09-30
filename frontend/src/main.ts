@@ -1,0 +1,30 @@
+import App from '@/app/App.vue';
+import AccountModule from '@/account';
+import router from '@/app/router';
+import CompanyModule from '@/company';
+import CriteriaModule from '@/criteria';
+import '@/common/style/global.scss';
+import DashboardModule from '@/dashboard';
+import InterviewModule from '@/interview';
+import PipelineModule from '@/pipeline';
+import PostingModule from '@/posting';
+import ResumeModule from '@/resume';
+import ElementPlus from 'element-plus';
+import 'element-plus/dist/index.css';
+import {createPinia} from 'pinia';
+import {createApp} from 'vue';
+
+const app = createApp(App);
+
+app.use(createPinia());
+app.use(ElementPlus);
+app.use(DashboardModule);
+app.use(PostingModule);
+app.use(CriteriaModule);
+app.use(PipelineModule);
+app.use(InterviewModule);
+app.use(ResumeModule);
+app.use(CompanyModule);
+app.use(AccountModule);
+app.use(router);
+app.mount('#app');

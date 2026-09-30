@@ -1,0 +1,45 @@
+{
+  "name": "jd-collector-frontend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --mode development",
+    "build": "vite build --mode production",
+    "preview": "vite preview",
+    "test:e2e": "node tests/native/run.mjs",
+    "desktop:build": "node src/app/electron/build.mjs",
+    "desktop:install": "node node_modules/electron/install.js",
+    "desktop:start": "npm run desktop:build && node src/app/electron/launch.mjs",
+    "filters:boss": "node src/app/electron/filters/boss.mjs",
+    "filters:liepin": "node src/app/electron/filters/liepin.mjs",
+    "filters:job51": "node src/app/electron/filters/job51.mjs",
+    "filters:zhaopin": "node src/app/electron/filters/zhaopin.mjs",
+    "test:filters": "node --test tests/desktop/filter-runner.test.mjs",
+    "desktop:dev": "npm run desktop:build && node src/app/electron/launch.mjs --dev",
+    "desktop:check": "tsc --project tsconfig.desktop.json --noEmit && node src/app/electron/check-boundaries.mjs",
+    "test:desktop": "npm run desktop:build && node --test tests/desktop/bridge.test.mjs tests/desktop/capture-boundaries.test.mjs tests/desktop/filter-runner.test.mjs && node tests/native/run.mjs --desktop"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "axios": "^1.10.0",
+    "dayjs": "^1.11.13",
+    "echarts": "5.6.0",
+    "element-plus": "^2.11.5",
+    "markdown-it": "^14.1.0",
+    "pinia": "^3.0.3",
+    "vue": "^3.5.17",
+    "vue-router": "^4.5.1"
+  },
+  "devDependencies": {
+    "@types/markdown-it": "^14.2.0",
+    "@types/node": "^24.0.7",
+    "@vitejs/plugin-vue": "^5.2.3",
+    "@vue/tsconfig": "^0.7.0",
+    "electron": "44.2.0",
+    "esbuild": "0.28.2",
+    "sass": "1.89.2",
+    "typescript": "~5.8.3",
+    "vite": "^6.3.5"
+  }
+}

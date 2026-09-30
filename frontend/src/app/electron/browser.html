@@ -1,0 +1,29 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'">
+  <title>JD Collector</title>
+  <style>
+    *{box-sizing:border-box} body{margin:0;background:#f3f5ef;color:#203a30;font:14px 'Microsoft YaHei',sans-serif}
+    header{height:98px;overflow:hidden;background:#182b23;border-bottom:1px solid #c4d2c8;color:#fff;padding:8px 12px}
+    .tabs{height:38px;display:flex;gap:6px;align-items:center;overflow-x:auto;scrollbar-width:thin}
+    .tab{display:flex;align-items:center;min-width:120px;max-width:240px;flex-shrink:0;background:#2b4237;border-radius:7px 7px 0 0}
+    .tab.active{background:#f4b85b;color:#15271f}.tab button{color:inherit;background:none;border:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-align:left}
+    .tab .choose{max-width:200px;padding:7px 10px}.tab .close{padding:7px 10px}
+    button{cursor:pointer;border:1px solid #456052;background:#2b4237;color:#edf2ed;border-radius:5px;padding:7px 10px;font:inherit}
+    button:hover{filter:brightness(1.15)}button:disabled{opacity:.4;cursor:default}button:focus-visible,input:focus-visible{outline:2px solid #f4b85b}
+    form{display:flex;gap:6px;height:42px;align-items:center}input{flex:1;min-width:80px;height:32px;padding:5px 10px;border-radius:6px;border:0;background:#f6f8f4;color:#203a30;font:inherit}
+    #status{flex-shrink:0;color:#ffb6a6;cursor:help}
+    main{padding:50px;text-align:center;color:#6f8175}h1{font-size:24px}.quick{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}.error{color:#ffb6a6}
+  </style>
+</head>
+<body>
+  <header>
+    <nav class="tabs" aria-label="网页标签"><div id="tabs" class="tabs"></div><button id="new-tab" title="新建标签页">＋</button></nav>
+    <form id="address-form"><button type="button" id="back" title="后退">←</button><button type="button" id="forward" title="前进">→</button><button type="button" id="reload" title="刷新">↻</button><input id="address" aria-label="网页地址" placeholder="输入 https:// 网址；新标签请点击 ＋"><span id="status" role="status" tabindex="0" hidden></span><button type="submit">访问</button><button type="button" id="workbench">工作台</button></form>
+  </header>
+  <main id="empty"><h1>把求职页面留在这里</h1><p>可同时打开多个平台、多个职位。标签切换不会刷新页面。</p><div class="quick"><button data-url="https://www.zhipin.com/">BOSS直聘</button><button data-url="https://www.liepin.com/">猎聘</button><button data-url="https://www.51job.com/">前程无忧</button><button data-url="https://www.zhaopin.com/">智联招聘</button></div></main>
+  <script src="./browser.js"></script>
+</body>
+</html>

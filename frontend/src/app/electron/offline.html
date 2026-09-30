@@ -1,0 +1,9 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; style-src 'unsafe-inline'; script-src 'nonce-jd-offline'">
+<title>JD Collector · 等待本地服务</title>
+<style>body{font:16px/1.8 "Microsoft YaHei",sans-serif;color:#213e32;background:#f3f5ef;margin:12vh auto;max-width:620px;padding:28px}button{background:#244b3b;color:white;padding:12px 24px;border:0;border-radius:10px;cursor:pointer}small{color:#738076}</style></head>
+<body><h1>本地服务尚未连接</h1><p>请先在项目目录运行 <code>ops/start.ps1</code>，然后点击重试。</p><p>桌面窗口已经启动，后台仍由现有运行脚本管理。</p><button id="retry">重新连接</button><p id="message"><small>默认服务：127.0.0.1:7890/jd-collector/</small></p>
+<script nonce="jd-offline">document.getElementById('retry').onclick=async()=>{const result=await window.jdDesktop.request('app.retry',{});if(!result.ok)document.getElementById('message').textContent=result.error.message;};</script>
+</body></html>
