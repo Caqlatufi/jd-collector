@@ -11,7 +11,8 @@ if (Test-Path -LiteralPath $envFile) {
         if ($setting.Name -notmatch '^JD_[A-Z0-9_]+$' -or $setting.Value -isnot [string]) {
             throw 'Local environment configuration requires JD_* keys and string values.'
         }
-        if ($null -eq [Environment]::GetEnvironmentVariable($setting.Name, 'Process')) {
+        if ($localSettings.JD_COLLECTOR_ISOLATED -eq 'true' -or
+            $null -eq [Environment]::GetEnvironmentVariable($setting.Name, 'Process')) {
             [Environment]::SetEnvironmentVariable($setting.Name, $setting.Value, 'Process')
         }
     }

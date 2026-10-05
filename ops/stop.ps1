@@ -9,7 +9,9 @@ if (-not (Test-Path -LiteralPath $pidFile)) {
 
 $processId = [int]([IO.File]::ReadAllText($pidFile).Trim())
 $process = Get-CimInstance Win32_Process -Filter "ProcessId=$processId" -ErrorAction SilentlyContinue
-if ($null -ne $process -and $process.CommandLine -like '*jd-collector*app-0.1.0.jar*') {
+$expectedJar = Join-Path $projectRoot 'backend\app\build\libs\app-0.1.0.jar'
+if ($null -ne $process -and $process.Name -eq 'java.exe' -and
+    $process.CommandLine.IndexOf($expectedJar, [StringComparison]::OrdinalIgnoreCase) -ge 0) {
     Stop-Process -Id $processId -Force
     Write-Output "JD Collector stopped. PID=$processId"
 } else {

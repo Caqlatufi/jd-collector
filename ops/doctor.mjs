@@ -62,7 +62,7 @@ export async function probeModel(executable, settings, root = projectRoot) {
   const directory = await fs.mkdtemp(path.join(probeRoot, 'probe-'));
   const output = path.join(directory, 'response.txt');
   const imageFile = path.join(directory, 'probe.png');
-  await fs.writeFile(imageFile, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jAfcAAAAASUVORK5CYII=', 'base64'));
+  await fs.writeFile(imageFile, Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAEAAAABACAIAAAAlC+aJAAAAgElEQVR4nNXOMREAIBDAsFIJ+N+YcImIH7hGQdY+lzKJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkziJkzh/B6YeOP8B3rhUC3MAAAAASUVORK5CYII=', 'base64'));
   const args = codexArguments({captures: [{filePath: imageFile}]}, directory, output, settings);
   await runProcess(executable, args, 'This is a synthetic image capability check. Return exactly READY. Do not use tools.', directory, 120000);
   return (await fs.readFile(output, 'utf8')).replace(/^\uFEFF/, '').trim() === 'READY';

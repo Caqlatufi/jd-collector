@@ -1,10 +1,13 @@
 $ErrorActionPreference = 'Stop'
 
 $projectRoot = Split-Path -Parent $PSScriptRoot
+. (Join-Path $PSScriptRoot 'env.ps1')
 $startScript = Join-Path $PSScriptRoot 'start-desktop.ps1'
 $desktopDir = [Environment]::GetFolderPath('Desktop')
 if (-not $desktopDir) { throw 'The current user desktop directory is unavailable.' }
-$shortcutPath = Join-Path $desktopDir 'JD Collector.lnk'
+$shortcutName = if ($env:JD_DESKTOP_SHORTCUT_NAME) { $env:JD_DESKTOP_SHORTCUT_NAME } else { 'JD Collector' }
+if ($shortcutName -match '[\\/:*?"<>|]') { throw 'Invalid desktop shortcut name.' }
+$shortcutPath = Join-Path $desktopDir ($shortcutName + '.lnk')
 $shell = New-Object -ComObject WScript.Shell
 $shortcut = $shell.CreateShortcut($shortcutPath)
 $shortcut.TargetPath = Join-Path $PSHOME 'powershell.exe'

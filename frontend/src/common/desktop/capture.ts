@@ -12,7 +12,7 @@ export interface CaptureRequest {key: string; platform: PlatformCode; batchId?: 
 export interface VisualAction {
   key: string; platform: PlatformCode; captureId: string; action: 'scroll' | 'click' | 'type' | 'key';
   x?: number; y?: number; deltaX?: number; deltaY?: number; text?: string; replace?: boolean;
-  keyCode?: 'Enter' | 'Tab' | 'Escape' | 'Backspace' | 'Delete' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown' | 'Home' | 'End' | 'SelectAll';
+  keyCode?: 'Enter' | 'Tab' | 'Escape' | 'Backspace' | 'Delete' | 'ArrowLeft' | 'ArrowRight' | 'ArrowUp' | 'ArrowDown' | 'Home' | 'End' | 'SelectAll' | 'ZoomIn' | 'ZoomOut' | 'ZoomReset';
   intent?: 'openJob' | 'searchControl' | 'pagination';
 }
 export interface ActionResult {key: string; action: string; accepted: true; completedAt: string; requiresCapture: true}

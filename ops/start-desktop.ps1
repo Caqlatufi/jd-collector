@@ -7,7 +7,10 @@ $desktopApp = Join-Path $frontendDir 'dist-electron'
 $electronExe = Join-Path $frontendDir 'node_modules\electron\dist\electron.exe'
 $powershellExe = Join-Path $PSHOME 'powershell.exe'
 $runtimeDir = Join-Path $projectRoot 'runtime'
-$launchLock = New-Object System.Threading.Mutex($false, 'Local\JDCollectorDesktopLauncher')
+$rootHash = [Security.Cryptography.SHA256]::Create()
+$lockSuffix = [BitConverter]::ToString($rootHash.ComputeHash([Text.Encoding]::UTF8.GetBytes($projectRoot.ToLowerInvariant()))).Replace('-', '')
+$rootHash.Dispose()
+$launchLock = New-Object System.Threading.Mutex($false, ('Local\JDCollectorDesktopLauncher-' + $lockSuffix))
 $lockHeld = $false
 
 function Test-BackendReady {
@@ -47,7 +50,7 @@ try {
         }
     }
 
-    foreach ($name in @('ELECTRON_RUN_AS_NODE', 'JD_DESKTOP_DEV', 'JD_DESKTOP_URL', 'JD_DESKTOP_ALLOW_LOCAL_HTTP')) {
+    foreach ($name in @('ELECTRON_RUN_AS_NODE', 'JD_DESKTOP_DEV', 'JD_DESKTOP_ALLOW_LOCAL_HTTP')) {
         [Environment]::SetEnvironmentVariable($name, $null, 'Process')
     }
     # The single-instance lock focuses the current client without closing its tabs.

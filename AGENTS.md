@@ -90,7 +90,7 @@ Gradle/JUnit 在部分中文路径下存在兼容问题。可在 `local/env.json
 
 ## 数据库约定
 
-运行脚本从 `local/env.json` 加载 JD_* 配置，进程变量优先，兼容 Windows 用户数据库环境变量；直接 Gradle 命令先 dot-source `ops/env.ps1`。公开示例在 `config/`，个人配置、模板、照片和进度统一放 `local/`，不得提交。数据库变量：
+运行脚本从 `local/env.json` 加载 JD_* 配置；`JD_COLLECTOR_ISOLATED=true` 时本项目配置优先，其他情况下进程变量优先，兼容 Windows 用户数据库环境变量。直接 Gradle 命令先 dot-source `ops/env.ps1`。公开示例在 `config/`，个人配置、模板、照片和进度统一放 `local/`，不得提交。数据库变量：
 
 - `JD_COLLECTOR_DB_URL`
 - `JD_COLLECTOR_DB_USERNAME`
@@ -155,15 +155,16 @@ Gradle/JUnit 在部分中文路径下存在兼容问题。可在 `local/env.json
 - 评分前读取 `GET /api/resume-versions?active=true&type=MASTER`，再读取该版本详情取得真实正文；缺少母版时先完成导入，不推测经历。平台 Skill 负责读取岗位，匹配评分由主 Agent 根据当前母版核对并记录证据与缺口。
 
 - **截图读取、Electron原生执行**：截图使用capturePage，点击、滚动与键盘使用sendInputEvent，文字使用insertText；统一通过受限本地workflow调用，不启用调试端口。真实招聘页禁止DOM、locator、语义选择器、无障碍树、页面脚本和网络响应读取或定位控件。主Agent根据截图确定坐标，动作绑定最新截图与目标页，页面或几何变化即停止重看。URL、标签key、viewport只作来源和几何元数据。本地工作台与隔离夹具可使用测试专用元素断言，该能力不进入生产管道。
-- 四个平台固定脚本保留独立的截图校准步骤；不硬套其他平台坐标。动作前核对目标、视口及图像锚点，动作后截图供主Agent读取；布局或锚点变化停止，不自动回退元素读取。登录/验证码、聊天和投递不自动化。
+- BOSS 固定脚本使用本项目的截图校准配方。动作前核对目标、视口及图像锚点，动作后截图供主Agent读取；布局或锚点变化停止，不自动回退元素读取。登录/验证码、聊天和投递不自动化。
 - 2026-09-10起统一使用Electron原生workflow；已移除调试连接、自动化启动开关和相关依赖。平台登录分区继续复用。原生能力验证与真实站点筛选覆盖分别记录，不能由构建或夹具测试推断全站可用。
 
 - 筛选或采集JD前通过 GET `/api/criteria` 读取当前有效门槛（默认 `local/JD门槛.json`）：`baselineRules` 保留原有已确认前提，`agentNotes` 保留采集证据与操作边界；`sections[].fields[]` 为精简问卷答案。非空且 `status=CONFIRMED` 的答案生效，空白、PENDING 和选项本身不代表接受或拒绝。用户保存即确认已填写内容，页面不再要求逐项勾选或指定性质；`kind` 只作兼容参考，按答案明确语义判断，不把可协商选项误作硬条件。新答案如明确调整基础条件，以用户最新保存的明确表述为准。页面与 Agent 共用此 JSON，不维护 Markdown 副本，不自动重评、删岗或投递。
 - JD门槛由独立 criteria 模块维护，页面位于 `/criteria`。配置 `jd-collector.criteria-file` 可指定文件，默认读取项目 `local/JD门槛.json`，环境变量 `JD_COLLECTOR_CRITERIA_FILE` 可覆盖；保存先核对版本并备份到门槛文件同级的 `backups/criteria`，再原子替换。Agent 优先通过 GET/PUT `/api/criteria` 更新答案以使用版本校验，需改结构时读取最新文件并避免与表单并行编辑。不要将此文件放进前端产物或数据库生成第二份有效来源。
 - 用户用自然语言提出岗位条件；不要要求其选择标签、检查登录、读取或转草稿。本人只负责平台网页内登录及验证码。
-- BOSS 请求读取 [.agents/skills/jd-boss/SKILL.md](.agents/skills/jd-boss/SKILL.md)；猎聘读取 [jd-liepin](.agents/skills/jd-liepin/SKILL.md)；前程无忧读取 [jd-job51](.agents/skills/jd-job51/SKILL.md)；智联读取 [jd-zhaopin](.agents/skills/jd-zhaopin/SKILL.md)。每个平台独立适配、独立核实，不以夹具通过代表真实站可用。
+- 当前采集只使用 BOSS，统一读取 [BOSS SOP](.agents/skills/jd-boss/SKILL.md)；按该流程完成筛选、批次识别、集中复核与归档。
 - Agent 入口为 `frontend/src/app/electron/workflow.mjs`，复用正常 Electron 会话。JD图片识别核心默认为 `gpt-6-astra` / `medium`，标准Prompt见 [.agents/skills/jd-vision-prompt.md](.agents/skills/jd-vision-prompt.md)。模型配置必须由主Agent实际指定，不只写在任务正文。
-- 当前BOSS流程：主Agent拍列表、依次点击可见卡片、每卡一张详情预览，明确映射后以 `node ops/recognition/screen.mjs <plan.json>` 提交SCREEN_BATCH；后台先读列表，以平台＋标准化公司名＋保留括号方向的完整岗位标题查正式JD和更早完成的SCREEN_BATCH，明确重复只记录关联、不发送详情图，其余候选再读对应详情，记录重复／保留／排除／需补充。主控截图和证据保留不变。仅缺口影响判断或正式归档时补图，不因独立URL／工商／通勤等缺失反复补拍。完整归档及其他平台仍支持 `node ops/recognition/queue.mjs <manifest或task.json>`。backend/recognition每5秒扫描，默认并发2组，独立Codex CLI默认Astra/medium，以用户本地配置为准；主Agent继续操作并集中处理结果。状态与结果见 `/api/recognition/tasks`，运行中任务不重复启动。初筛结果是文件候选记录，不自动写正式JD。
+- BOSS 的筛选、批次采集、集中复核和归档统一遵循 [BOSS 采集 SOP](.agents/skills/jd-boss/SKILL.md)；公共原生操作与保存契约见 [公共规则](.agents/skills/platform-workflow.md)。本文件不复制平台步骤。当前条件读取 criteria API，本轮覆盖与断点读取对应平台任务单；接续文件只作摘要，历史验收不作为当前任务。
+- backend/recognition每5秒扫描，默认并发2组，独立Codex CLI默认Astra/medium，以用户本地配置为准；主Agent继续操作并集中处理结果。状态与结果见 `/api/recognition/tasks`，运行中任务不重复启动。初筛结果是文件候选记录，不自动写正式JD；新增仍为SCREENED，不投递、不联系HR、不排期。
 - 用户已选择截图主链路；原生 capture/scroll/click/type/key 已实现，旧 inspect/read/diagnose 返回 WORKFLOW_DEPRECATED，正文DOM/字体提取代码已移除。真实网站必须使用原生PNG证据，按平台Skill逐步操作，不静默回退DOM。禁止任意脚本或全权限调试端口。
-- `node dist-electron/review.cjs <task.json> <result.json>` 只读校验图片哈希/尺寸、识别协议和证据完整性；通过不代表业务门槛已满足。四个平台各一份真实详情已于2026-09-09通过Astra/medium及独立H2的HTTP保存/查重/回读，详细范围见docs/04，不能外推为全站或所有岗位已符合条件。
+- `node dist-electron/review.cjs <task.json> <result.json>` 只读校验图片哈希/尺寸、识别协议和证据完整性；通过不代表业务门槛已满足。BOSS 单岗位真实详情已于2026-09-09通过Astra/medium及独立H2的HTTP保存/查重/回读，详细范围见docs/04，不能外推为全站或所有岗位已符合条件。
 - 本地连接清单位于 userData，包含通信令牌，不打印、不提交、不当作招聘平台认证；不能把它返回给网页。

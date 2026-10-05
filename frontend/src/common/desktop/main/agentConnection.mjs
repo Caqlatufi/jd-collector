@@ -1,9 +1,11 @@
 import net from 'node:net';
 import {readFile} from 'node:fs/promises';
 import path from 'node:path';
+import {localEnvironment} from './localEnvironment.mjs';
 
 export async function agentRequest(platform, action, payload = {}) {
-  const userData = process.env.JD_DESKTOP_USER_DATA || path.join(process.env.APPDATA || '', 'JD Collector');
+  const env = localEnvironment();
+  const userData = env.JD_DESKTOP_USER_DATA || path.join(env.APPDATA || '', 'JD Collector');
   const connection = JSON.parse(await readFile(path.join(userData, 'workflow-connection.json'), 'utf8'));
   return new Promise((resolve, reject) => {
     const socket = net.connect(connection.pipe);

@@ -54,6 +54,9 @@ export function registerDesktop(window: BrowserWindow, allowedUrls: Set<string>,
         case 'browser.back': result = browsers.navigation(data.key as string, 'back'); break;
         case 'browser.forward': result = browsers.navigation(data.key as string, 'forward'); break;
         case 'browser.reload': result = browsers.navigation(data.key as string, 'reload'); break;
+        case 'browser.zoom':
+          if (!['in', 'out', 'reset'].includes(data.action as string)) throw new Error('网页缩放操作不正确');
+          result = browsers.zoom(data.key as string, data.action as 'in' | 'out' | 'reset'); break;
         case 'browser.navigate':
           if (typeof data.url !== 'string' || data.url.length > 2048) throw new Error('网页地址不正确');
           result = browsers.navigate(data.key as string, data.url); break;

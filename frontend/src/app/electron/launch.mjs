@@ -2,12 +2,13 @@ import {spawn} from 'node:child_process';
 import {createRequire} from 'node:module';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
+import {localEnvironment} from '../../common/desktop/main/localEnvironment.mjs';
 
 const require = createRequire(import.meta.url);
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../..');
 const executable = require('electron');
 const dev = process.argv.includes('--dev');
-const env = {...process.env};
+const env = localEnvironment();
 delete env.ELECTRON_RUN_AS_NODE;
 if (dev) env.JD_DESKTOP_DEV = '1';
 let vite;

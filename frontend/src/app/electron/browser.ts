@@ -38,6 +38,7 @@ function render() {
   document.querySelector<HTMLButtonElement>('#back')!.disabled = !current?.canGoBack;
   document.querySelector<HTMLButtonElement>('#forward')!.disabled = !current?.canGoForward;
   document.querySelector<HTMLButtonElement>('#reload')!.disabled = !current || Boolean(current.pinned);
+  document.querySelector<HTMLButtonElement>('#zoom-reset')!.textContent = Math.round((current?.zoomFactor || 1) * 100) + '%';
   empty.hidden = rows.length > 0;
 }
 async function open(value: string) {
@@ -67,5 +68,8 @@ for (const action of ['back', 'forward', 'reload'] as const) document.querySelec
   const current = active(); if (current) void request(`browser.${action}`, {key: current.key});
 });
 document.querySelector('#workbench')!.addEventListener('click', () => { void request('window.focus', {}); });
+for (const action of ['in', 'out', 'reset'] as const) document.querySelector('#zoom-' + action)!.addEventListener('click', () => {
+  const current = active(); if (current) void request('browser.zoom', {key: current.key, action});
+});
 document.querySelectorAll<HTMLButtonElement>('[data-url]').forEach(button => button.addEventListener('click', () => { adding = true; void open(button.dataset.url!); }));
 void refresh();

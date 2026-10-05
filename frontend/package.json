@@ -18,7 +18,7 @@
     "test:filters": "node --test tests/desktop/filter-runner.test.mjs",
     "desktop:dev": "npm run desktop:build && node src/app/electron/launch.mjs --dev",
     "desktop:check": "tsc --project tsconfig.desktop.json --noEmit && node src/app/electron/check-boundaries.mjs",
-    "test:desktop": "npm run desktop:build && node --test tests/desktop/bridge.test.mjs tests/desktop/capture-boundaries.test.mjs tests/desktop/filter-runner.test.mjs && node tests/native/run.mjs --desktop"
+    "test:desktop": "npm run desktop:build && node --test tests/desktop/bridge.test.mjs tests/desktop/capture-boundaries.test.mjs tests/desktop/filter-runner.test.mjs tests/desktop/local-environment.test.mjs && node tests/native/run.mjs --desktop"
   },
   "dependencies": {
     "@element-plus/icons-vue": "^2.3.2",

@@ -24,12 +24,15 @@ export class BrowserWindows {
   private popupSequence = 0;
   private disposing = false;
   private visualEpoch = 0;
+  private readonly backgroundWorkflow = process.env.JD_DESKTOP_BACKGROUND_WORKFLOW === 'true';
   constructor(private readonly emit: (state: BrowserState) => void, private readonly allowLocalHttp: boolean,
               private readonly shell: BrowserShell, private readonly adapters: PlatformAdapter[] = []) {
     this.host = shell.host;
     this.host.on('resize', () => { this.visualEpoch++; this.layout(); });
-    this.host.on('blur', () => { this.visualEpoch++; });
+    this.host.on('blur', () => { if (!this.backgroundWorkflow) this.visualEpoch++; });
     this.host.on('move', () => { this.visualEpoch++; });
+    this.installZoom(this.host.webContents, () => this.activeKey);
+    this.installZoom(shell.workbench.webContents, () => WORKBENCH_KEY);
     this.layout();
   }
 
@@ -43,7 +46,8 @@ export class BrowserWindows {
   private ensureHost(): BrowserWindow { return this.shell.host; }
   private workbenchState(): BrowserState {
     return {key: WORKBENCH_KEY, title: 'JD Collector', url: '', pinned: true, active: this.activeKey === WORKBENCH_KEY,
-      status: 'ready', message: '本地求职工作台 · 固定标签，不能关闭', canGoBack: false, canGoForward: false};
+      status: 'ready', message: '本地求职工作台 · 固定标签，不能关闭', canGoBack: false, canGoForward: false,
+      zoomFactor: this.shell.workbench.webContents.getZoomFactor()};
   }
   show(): BrowserState[] {
     const host = this.ensureHost();
@@ -79,6 +83,7 @@ export class BrowserWindows {
     if (contents.isDestroyed()) return;
     entry.state = {...entry.state, active: entry.state.key === this.activeKey,
       platform: this.adapterFor(contents.getURL() || entry.requestedUrl)?.platform, pageRevision: entry.revision,
+      zoomFactor: contents.getZoomFactor(),
       canGoBack: contents.navigationHistory.canGoBack(), canGoForward: contents.navigationHistory.canGoForward(),
       url: this.safeUrl(contents.getURL()) || this.safeUrl(entry.requestedUrl)};
     this.emit({...entry.state});
@@ -95,6 +100,7 @@ export class BrowserWindows {
     this.entries.set(key, entry);
     host.contentView.addChildView(view);
     const contents = view.webContents;
+    this.installZoom(contents, () => key);
     contents.on('before-input-event', () => { this.visualEpoch++; });
     contents.on('before-mouse-event', (_event, input) => {
       if (input.type === 'mouseDown' || input.type === 'mouseWheel') this.visualEpoch++;
@@ -170,7 +176,7 @@ export class BrowserWindows {
     const entry = key === WORKBENCH_KEY ? undefined : this.require(key);
     this.visualEpoch++;
     this.activeKey = key;
-    this.show();
+    if (this.backgroundWorkflow) this.layout(); else this.show();
     this.emit(this.workbenchState());
     for (const item of this.entries.values()) this.publish(item);
     (entry?.view || this.shell.workbench).webContents.focus();
@@ -195,6 +201,33 @@ export class BrowserWindows {
     if (action === 'forward' && contents.navigationHistory.canGoForward()) contents.navigationHistory.goForward();
     this.publish(entry);
     return {...entry.state};
+  }
+  private installZoom(contents: Electron.WebContents, key: () => string) {
+    contents.setZoomMode('isolated');
+    contents.on('before-input-event', (event, input) => {
+      if (input.type !== 'keyDown' || !(input.control || input.meta) || input.alt) return;
+      const action = ['+', '=', 'Add'].includes(input.key) ? 'in'
+        : ['-', '_', 'Subtract'].includes(input.key) ? 'out' : input.key === '0' ? 'reset' : undefined;
+      if (!action) return;
+      event.preventDefault();
+      this.zoom(key(), action);
+    });
+    contents.on('zoom-changed', (event, direction) => {
+      event.preventDefault(); this.zoom(key(), direction === 'in' ? 'in' : 'out');
+    });
+  }
+  zoom(key: string, action: 'in' | 'out' | 'reset'): BrowserState {
+    const entry = key === WORKBENCH_KEY ? undefined : this.require(key);
+    const contents = (entry?.view || this.shell.workbench).webContents;
+    const steps = [0.5, 0.67, 0.75, 0.8, 0.9, 1, 1.1, 1.25, 1.5, 1.75, 2, 2.5, 3];
+    const current = contents.getZoomFactor();
+    const factor = action === 'reset' ? 1 : action === 'in'
+      ? steps.find(value => value > current + 0.001) || 3
+      : [...steps].reverse().find(value => value < current - 0.001) || 0.5;
+    this.visualEpoch++;
+    contents.setZoomFactor(factor);
+    if (entry) { this.publish(entry); return {...entry.state}; }
+    const state = this.workbenchState(); this.emit(state); return state;
   }
   list(): BrowserState[] { return [this.workbenchState(), ...[...this.entries.values()].map(entry => ({...entry.state}))]; }
   private remove(key: string): BrowserState {
@@ -237,7 +270,7 @@ export class BrowserWindows {
     const host = this.ensureHost();
     if (!host.isVisible() || host.isMinimized() || request.key !== this.activeKey)
       throw new PlatformOperationError('TARGET_NOT_VISIBLE', '请先打开或返回目标平台标签');
-    if (!host.isFocused()) throw new PlatformOperationError('TARGET_NOT_FOCUSED', '客户端未聚焦，请重新返回平台');
+    if (!this.backgroundWorkflow && !host.isFocused()) throw new PlatformOperationError('TARGET_NOT_FOCUSED', '客户端未聚焦，请重新返回平台');
     if (contents.isLoadingMainFrame()) throw new PlatformOperationError('READ_BUSY', '页面正在加载，请稍后截图');
     const url = new URL(contents.getURL());
     for (const key of [...url.searchParams.keys()]) if (!adapter.sourceQueryKeys?.includes(key)) url.searchParams.delete(key);

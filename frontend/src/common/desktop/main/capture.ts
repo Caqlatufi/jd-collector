@@ -132,10 +132,10 @@ export class VisualCapture {
         if (request.action === 'type' && (typeof request.text !== 'string' || !request.text.length || request.text.length > 200 || /[\x00-\x1f\x7f]/.test(request.text) ||
             (request.replace !== undefined && typeof request.replace !== 'boolean')))
           fail('WORKFLOW_REJECTED', '搜索文字必须为1至200个字符且不含控制字符');
-        if (request.action === 'key' && !['Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'SelectAll'].includes(request.keyCode || ''))
-          fail('WORKFLOW_REJECTED', '仅允许搜索控件的编辑及导航按键');
+        if (request.action === 'key' && !['Enter', 'Tab', 'Escape', 'Backspace', 'Delete', 'ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End', 'SelectAll', 'ZoomIn', 'ZoomOut', 'ZoomReset'].includes(request.keyCode || ''))
+          fail('WORKFLOW_REJECTED', '仅允许搜索控件按键和页面缩放');
         const context = this.searchTarget;
-        if (!context || context.key !== request.key || context.epoch !== target.epoch || context.revision !== target.revision || Date.now() - context.time > 30000)
+        if (!request.keyCode?.startsWith('Zoom') && (!context || context.key !== request.key || context.epoch !== target.epoch || context.revision !== target.revision || Date.now() - context.time > 30000))
           fail('SEARCH_TARGET_REQUIRED', '请先基于截图点击搜索输入框');
       } else {
         const {width, height} = target.view.getBounds();
@@ -158,8 +158,8 @@ export class VisualCapture {
       this.searchTarget = undefined;
       const contents = target.view.webContents;
       const press = (key: string) => {
-        const keyCode = key === 'SelectAll' ? 'A' : key.replace('Arrow', '');
-        const modifiers: ('control' | 'meta')[] = key === 'SelectAll' ? [process.platform === 'darwin' ? 'meta' : 'control'] : [];
+        const keyCode = key === 'ZoomIn' ? '+' : key === 'ZoomOut' ? '-' : key === 'ZoomReset' ? '0' : key === 'SelectAll' ? 'A' : key.replace('Arrow', '');
+        const modifiers: ('control' | 'meta')[] = key === 'SelectAll' || key.startsWith('Zoom') ? [process.platform === 'darwin' ? 'meta' : 'control'] : [];
         contents.sendInputEvent({type: 'keyDown', keyCode, modifiers});
         if (key === 'Enter') contents.sendInputEvent({type: 'char', keyCode: '\r'});
         contents.sendInputEvent({type: 'keyUp', keyCode, modifiers});
@@ -177,7 +177,7 @@ export class VisualCapture {
       }
       // Preserve editing context through our own input; navigation or focus changes still invalidate it.
       if (request.intent === 'searchControl' || request.action === 'type' ||
-          (request.action === 'key' && !['Enter', 'Tab', 'Escape'].includes(request.keyCode!))) {
+          (request.action === 'key' && !request.keyCode?.startsWith('Zoom') && !['Enter', 'Tab', 'Escape'].includes(request.keyCode!))) {
         await new Promise(resolve => setTimeout(resolve, 50));
         try {
           const current = this.target(request);

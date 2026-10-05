@@ -38,7 +38,8 @@ export function codexArguments(task, directory, output, settings = recognitionSe
     '-c', 'web_search="disabled"', '-c', 'mcp_servers={}', '--disable', 'shell_tool', '--disable', 'apps',
     '--disable', 'multi_agent', '--disable', 'plugins', '--disable', 'browser_use',
     '--disable', 'computer_use', '--skip-git-repo-check', '--color', 'never', '--json', '--cd', directory,
-    '--output-last-message', output, ...task.captures.flatMap(c => ['--image', c.filePath]), '-'];
+    // --image accepts multiple paths; end option parsing before the stdin prompt marker.
+    '--output-last-message', output, ...task.captures.flatMap(c => ['--image', c.filePath]), '--', '-'];
 }
 
 export async function runProcess(executable, args, prompt, attemptDirectory, timeoutMs) {

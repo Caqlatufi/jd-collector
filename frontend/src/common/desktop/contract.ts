@@ -16,6 +16,7 @@ export interface BrowserState {
   canGoForward?: boolean;
   platform?: PlatformCode;
   pageRevision?: number;
+  zoomFactor?: number;
 }
 export interface DesktopCommands {
   'platform.list': {input: Record<string, never>; output: PlatformDefinition[]};
@@ -33,6 +34,7 @@ export interface DesktopCommands {
   'browser.back': {input: {key: string}; output: BrowserState};
   'browser.forward': {input: {key: string}; output: BrowserState};
   'browser.reload': {input: {key: string}; output: BrowserState};
+  'browser.zoom': {input: {key: string; action: 'in' | 'out' | 'reset'}; output: BrowserState};
   'window.focus': {input: Record<string, never>; output: WindowState};
   'browser.close': {input: {key: string}; output: BrowserState};
   'browser.list': {input: Record<string, never>; output: BrowserState[]};
@@ -49,7 +51,7 @@ export const DESKTOP_COMMANDS: readonly DesktopCommand[] = [
   'platform.list', 'platform.open', 'platform.inspect', 'platform.read',
   'runtime.info', 'app.retry', 'window.minimize', 'window.toggleMaximize',
   'browser.open', 'browser.close', 'browser.list', 'browser.session',
-  'browser.show', 'browser.focus', 'browser.navigate', 'browser.back', 'browser.forward', 'browser.reload', 'window.focus',
+  'browser.show', 'browser.focus', 'browser.navigate', 'browser.back', 'browser.forward', 'browser.reload', 'browser.zoom', 'window.focus',
 ];
 export type DesktopEnvelope = {[K in DesktopEvent]: {type: K; payload: DesktopEvents[K]}}[DesktopEvent];
 export type DesktopResult<T> = {ok: true; data: T} | {ok: false; error: {code: string; message: string}};

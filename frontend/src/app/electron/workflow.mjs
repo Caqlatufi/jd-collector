@@ -1,6 +1,7 @@
 import net from 'node:net';
 import fs from 'node:fs';
 import path from 'node:path';
+import {localEnvironment} from '../../common/desktop/main/localEnvironment.mjs';
 
 const [platform, action = 'tabs', ...args] = process.argv.slice(2);
 if (!['BOSS', 'LIEPIN', 'JOB51', 'ZHAOPIN'].includes(platform) || !['open', 'tabs', 'focus', 'inspect', 'read', 'navigate', 'diagnose', 'capture', 'scroll', 'click', 'type', 'key'].includes(action)) {
@@ -29,7 +30,8 @@ try {
     if (args.length > (action === 'navigate' ? 2 : 1)) throw new Error('Too many arguments');
     payload = action === 'navigate' ? {url: args[0], key: args[1]} : {key: args[0]};
   }
-  const userData = process.env.JD_DESKTOP_USER_DATA || path.join(process.env.APPDATA || '', 'JD Collector');
+  const env = localEnvironment();
+  const userData = env.JD_DESKTOP_USER_DATA || path.join(env.APPDATA || '', 'JD Collector');
   const connection = JSON.parse(fs.readFileSync(path.join(userData, 'workflow-connection.json'), 'utf8'));
   const result = await new Promise((resolve, reject) => {
     const socket = net.connect(connection.pipe);
