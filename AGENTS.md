@@ -73,7 +73,7 @@
 # 打开桌面客户端，已打开时激活原窗口
 .\ops\start-desktop.ps1
 
-# 生成带时间戳的 MySQL 备份
+# 生成带时间戳的数据库备份（H2 ZIP / MySQL SQL）
 .\ops\backup.ps1
 ```
 
@@ -92,7 +92,8 @@ Gradle/JUnit 在部分中文路径下存在兼容问题。可在 `local/env.json
 
 运行脚本从 `local/env.json` 加载 JD_* 配置；`JD_COLLECTOR_ISOLATED=true` 时本项目配置优先，其他情况下进程变量优先，兼容 Windows 用户数据库环境变量。直接 Gradle 命令先 dot-source `ops/env.ps1`。公开示例在 `config/`，个人配置、模板、照片和进度统一放 `local/`，不得提交。数据库变量：
 
-- `JD_COLLECTOR_DB_URL`
+- `JD_COLLECTOR_DATA_DIR`：默认 `local/data`，与构建产物分离；安装器可指定用户数据目录。
+- `JD_COLLECTOR_DB_URL`：默认 H2 文件，显式配置时兼容原 MySQL。
 - `JD_COLLECTOR_DB_USERNAME`
 - `JD_COLLECTOR_DB_PASSWORD`
 
@@ -105,12 +106,17 @@ Gradle/JUnit 在部分中文路径下存在兼容问题。可在 `local/env.json
 - `jd_resume_version`
 - `jd_posting`
 - `jd_posting_greeting`
+- `jd_posting_direction`
+- `jd_posting_term`
+- `jd_posting_term_profile`
 - `jd_stage_event`
 - `jd_interview`
 - `jd_resume_content_block`
 - `jd_platform_account`
 
-数据库同时承载其他本地工具的`aic_`表。两个应用必须按前缀隔离：
+默认运行库为内嵌 H2 2.2.224，驱动随 JAR 打包，由 JDBC URL 推断驱动。JD 文件使用 `MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE`，允许本机面试服务经 SELECT 专用账号读取；两个应用必须使用同版 H2。详见[内嵌数据库与迁移](docs/19-内嵌数据库与迁移.md)。
+
+历史 MySQL 同时承载`aic_`表。迁移后 JD 与面试业务分别保存到各自 H2 文件，两个应用继续按前缀隔离：
 
 - JD Collector只拥有并管理`jd_`表；禁止在本项目实体、JPA结构更新、修复SQL、清理脚本或测试中创建、修改、删除、重命名或回填`aic_`表。
 - AI Interview Coach只拥有`aic_`表，并以只读连接访问`jd_`表。`aic_interview_session.jd_posting_id`只是逻辑引用，不在两组表之间建立数据库外键。
@@ -121,7 +127,8 @@ Gradle/JUnit 在部分中文路径下存在兼容问题。可在 `local/env.json
 
 ## 备份与恢复
 
-- `.\ops\backup.ps1` 在 `backups` 生成 `jd-collector-yyyyMMdd-HHmmss.sql`。
+- `.\ops\backup.ps1` 在 `backups` 生成 H2 一致性 ZIP；显式 MySQL 配置仍生成全库 SQL。
+- H2 恢复使用 `.\ops\restore.ps1 -BackupFile <zip> -DatabasePath <不存在的数据库基础路径>`；拒绝覆盖，不修改运行配置。
 - 存在账号密钥时同时生成配套 `.accounts.key` 并核对哈希；自定义密钥位置用 `-AccountKeyPath` 传入。
 - 恢复前先停止应用，并先恢复到独立临时库核对，禁止直接覆盖正在使用的库。
 - 核对上述业务表、关键行数和唯一启用 Master 后，先备份正式库，再执行正式恢复。
@@ -133,7 +140,7 @@ Gradle/JUnit 在部分中文路径下存在兼容问题。可在 `local/env.json
 - 服务只监听 `127.0.0.1`。`/api/accounts` 不返回密码、Cookie、Token 或密文；禁止在日志或对话输出这些秘密。
 - 招聘平台统一在 Electron 内置标签打开；用户在网站内完成登录和验证，由 Agent 按平台 Skill 读取目标岗位页。普通浏览器提示使用客户端，不启动独立 Chrome。
 - 平台适配规则归 frontend/account，app 注入 common/desktop 执行；业务模块通过类型化请求/事件使用能力。
-- 登录会话沿用 Electron 持久化分区，不向 Java 导出密码、Cookie 或存储原文；历史数据库密文及 runtime/accounts/master.key 不迁移、不清除，继续配套备份。
+- 登录会话沿用 Electron 持久化分区，不向 Java 导出密码、Cookie 或存储原文；数据库搬迁原样保留历史密文，runtime/accounts/master.key 保留原位置、不清除，继续配套备份。
 - 旧账号写接口返回 HTTP 400 / code 40002；GET /api/accounts 仅作历史兼容，不代表当前登录状态。Java 浏览器服务和 Playwright 运行依赖已移除。
 - 平台读取由 Agent workflow 执行，账号页只提供打开/返回平台。只有用户要求采集或更新时才通过原 JD 接口保存，不自动投递或排期。真实平台认证、DOM 适配效果与隔离夹具测试分别报告。
 - 回归：后端 ASCII junction 执行 .\gradlew.bat :account:test :app:test；前端 npm run test:desktop 和 npm run test:e2e -- tests/accounts.spec.ts。写入使用独立 H2，Electron 测试使用独立 userData。

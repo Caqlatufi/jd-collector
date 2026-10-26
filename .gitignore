@@ -26,6 +26,9 @@ backups/
 *.sql
 *.sqlite*
 *.db
+*.mv.db
+*.trace.db
+*.lock.db
 /JD门槛.json
 /JD搜索任务单*.md
 /frontend/public/resume/

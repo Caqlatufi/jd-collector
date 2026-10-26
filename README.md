@@ -6,7 +6,7 @@
 
 - 前端：Vue 3、TypeScript、Vite、Element Plus、Pinia、axios、SCSS。
 - 前端结构：业务域各自通过 `index.ts` 注册懒加载路由，由 `main.ts` 逐个挂载，`app/router.ts` 统一装配。
-- 后端：Java 17、Spring Boot 3.1.1、Gradle、Spring Data JPA、MySQL / MariaDB、Lombok。
+- 后端：Java 17、Spring Boot 3.1.1、Gradle、Spring Data JPA、内嵌 H2（兼容显式 MySQL / MariaDB 连接）、Lombok。
 - 公共实体及 REST 响应由本项目维护，不需要本机私有框架。
 - 接口：REST，统一前缀 `/jd-collector/api`。
 - 本地端口：打包版统一使用 `7890`；前端独立开发时使用 `3002`。
@@ -22,7 +22,7 @@
 
 ## 快速开始（Windows）
 
-准备 Java 17、Node.js 22.12+、MySQL 和 PowerShell。采集还需要安装并登录 [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)。当前桌面采集使用 Windows 本地 workflow，岗位方向支持 Java 后端、平台后端、AI 应用、全栈、AI 工具与测试平台。
+准备 Java 17、Node.js 22.12+ 和 PowerShell。默认数据库随 Java 应用运行，无需安装 MySQL。采集还需要安装并登录 [Codex CLI](https://learn.chatgpt.com/docs/codex/cli)。当前桌面采集使用 Windows 本地 workflow，岗位方向支持 Java 后端、平台后端、AI 应用、全栈、AI 工具与测试平台。
 
 ### 1. 克隆与初始化
 
@@ -37,13 +37,13 @@ notepad .\local\env.json
 
 ### 2. 填写本地配置
 
-将 `local/env.json` 中的数据库用户名和密码占位值换成自己的连接信息。数据库账号需有建库（库尚不存在时）、建表和更新权限。启用采集时将 `JD_RECOGNITION_ENABLED` 改为字符串 `"true"`，并确认 Codex 已登录。
+默认将 H2 数据保存在 `local/data/jd-collector.mv.db`，可通过 `JD_COLLECTOR_DATA_DIR` 指向其他可写目录。已有 MySQL 数据需要先按[内嵌数据库与迁移](docs/19-内嵌数据库与迁移.md)迁移核对，不能仅改连接后把空库当作迁移成功。启用采集时将 `JD_RECOGNITION_ENABLED` 改为字符串 `"true"`，并确认 Codex 已登录。
 
 ```json
 {
-  "JD_COLLECTOR_DB_URL": "jdbc:mysql://127.0.0.1:3306/jd_collector?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai",
-  "JD_COLLECTOR_DB_USERNAME": "your_database_user",
-  "JD_COLLECTOR_DB_PASSWORD": "replace_with_your_password",
+  "JD_COLLECTOR_DATA_DIR": "local/data",
+  "JD_COLLECTOR_DB_USERNAME": "sa",
+  "JD_COLLECTOR_DB_PASSWORD": "",
   "JD_RECOGNITION_ENABLED": "true",
   "JD_RECOGNITION_NODE": "node",
   "JD_RECOGNITION_CODEX": "",
@@ -72,7 +72,7 @@ Set-Location ..
 
 `build.ps1` 一次生成网页、Electron 和一体化 JAR；桌面启动器会启动后端并等待健康检查。工作台入口为 `http://127.0.0.1:7890/jd-collector/`。
 
-自检默认不调用模型。`FAIL` 需要修复；`WARN` 表示尚未构建、未启用识别或未完成采集准备。数据库端口可达不代表账号有权限，启动后的健康检查才确认应用可用。采集前还可运行一次合成图片探测，会消耗当前 Codex 登录方式对应的额度：
+自检默认不调用模型。`FAIL` 需要修复；`WARN` 表示尚未构建、未启用识别或未完成采集准备。H2 检查数据目录，MySQL 检查端口，启动后还需检查真实接口。采集前还可运行一次合成图片探测，会消耗当前 Codex 登录方式对应的额度：
 
 ```powershell
 .\ops\doctor.ps1 -Running -ProbeModel
@@ -112,7 +112,8 @@ Set-Location ..
 
 | 配置键 | 默认值 / 用途 |
 | --- | --- |
-| `JD_COLLECTOR_DB_URL`、`JD_COLLECTOR_DB_USERNAME`、`JD_COLLECTOR_DB_PASSWORD` | 自己的 MySQL 连接；勿保留示例占位值 |
+| `JD_COLLECTOR_DATA_DIR` | 默认 `local/data`，可改到外部可写目录 |
+| `JD_COLLECTOR_DB_URL`、`JD_COLLECTOR_DB_USERNAME`、`JD_COLLECTOR_DB_PASSWORD` | 默认 H2 / sa / 空密码；已有实例使用本地配置，支持显式 MySQL |
 | `JD_RECOGNITION_ENABLED` | 初始化示例为 `false`；采集时设为 `true` |
 | `JD_RECOGNITION_NODE` | `node`；可指定 Node 可执行文件 |
 | `JD_RECOGNITION_CODEX` | 空字符串自动发现；可指定原生 `codex.exe` |
@@ -147,6 +148,7 @@ Set-Location ..
 | 位置 | 用途 | 覆盖变量 |
 | --- | --- | --- |
 | `local/env.json` | 数据库连接及运行参数 | `JD_COLLECTOR_ENV_FILE` |
+| `local/data/` | 内嵌 H2 业务文件，不提交、不打入 JAR | `JD_COLLECTOR_DATA_DIR` |
 | `local/JD门槛.json` | 薪资、通勤、经验、工作安排等；通过 `/api/criteria` 读写 | `JD_COLLECTOR_CRITERIA_FILE` |
 | `local/resume-starter.md` | 新增简历的初始正文 | `JD_RESUME_STARTER_FILE` |
 | `local/resume/photo.png` | 运行时提供的 PNG 照片，不打入前端或 JAR | `JD_RESUME_PHOTO_FILE` |

@@ -58,3 +58,15 @@ test('doctor honors custom files and separates unavailable dependencies from run
   assert.equal(mismatch.find(check => check.name === '运行配置').status, 'FAIL');
   assert.equal(mismatch.find(check => check.name === '桌面连接').status, 'FAIL');
 });
+
+test('embedded database needs no TCP service and accepts a new writable data directory', async t => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), 'jd-h2-doctor-'));
+  t.after(() => fs.rm(root, {recursive: true, force: true}));
+  const env = {JD_COLLECTOR_DB_URL: 'jdbc:h2:file:./local/data/jd-collector;MODE=MySQL;AUTO_SERVER=TRUE',
+    JD_COLLECTOR_DB_USERNAME: 'sa', JD_COLLECTOR_DB_PASSWORD: '', JD_RECOGNITION_ENABLED: 'false',
+    JD_RECOGNITION_CODEX: path.join(root, 'missing-codex.exe')};
+  assert.deepEqual(databaseTarget(env), {file: './local/data/jd-collector'});
+  const checks = await doctor({env, root});
+  assert.equal(checks.find(check => check.name === '内嵌数据库')?.status, 'PASS');
+  assert.equal(checks.some(check => check.name === '数据库端口'), false);
+});

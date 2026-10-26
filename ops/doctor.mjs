@@ -12,6 +12,11 @@ export function databaseTarget(env) {
   if (!env.JD_COLLECTOR_DB_URL || !env.JD_COLLECTOR_DB_USERNAME ||
       env.JD_COLLECTOR_DB_USERNAME === 'your_database_user' ||
       env.JD_COLLECTOR_DB_PASSWORD === 'replace_with_your_password') throw new Error('DB_CONFIG_REQUIRED');
+  if (env.JD_COLLECTOR_DB_URL.startsWith('jdbc:h2:file:')) {
+    const file = env.JD_COLLECTOR_DB_URL.slice('jdbc:h2:file:'.length).split(';')[0];
+    if (!file || file.includes('\n') || file.includes('\r')) throw new Error('INVALID_DB_URL');
+    return {file};
+  }
   try {
     const url = new URL(env.JD_COLLECTOR_DB_URL.replace(/^jdbc:/, ''));
     if (url.protocol !== 'mysql:' || !url.hostname || url.pathname.length < 2) throw new Error();
@@ -80,7 +85,22 @@ export async function doctor({running = false, probe = false, env = process.env,
   report(javaResult.status === 0 && Number(javaVersion) === 17 ? 'PASS' : 'FAIL', 'Java', '要求 Java 17，使用 JAVA_HOME 或 PATH 配置。');
   try {
     const target = databaseTarget(env);
-    report(await tcpAvailable(target) ? 'PASS' : 'FAIL', '数据库端口', '仅验证 TCP 可达；账号权限在启动后由健康检查验证。');
+    if (target.file) {
+      const file = path.resolve(root, target.file);
+      // A new installation may not have created the file yet; verify its writable parent.
+      let directory = path.dirname(file);
+      while (true) {
+        try { await fs.access(directory, fs.constants.W_OK); break; }
+        catch {
+          const parent = path.dirname(directory);
+          if (parent === directory) throw new Error('DATA_DIRECTORY_UNAVAILABLE');
+          directory = parent;
+        }
+      }
+      report('PASS', '内嵌数据库', 'H2 文件目录可写，无需 MySQL；实际连接在应用启动时验证。');
+    } else {
+      report(await tcpAvailable(target) ? 'PASS' : 'FAIL', '数据库端口', '仅验证 TCP 可达；账号权限在启动后由健康检查验证。');
+    }
   } catch { report('FAIL', '数据库配置', '请在 local/env.json 填写 JD_COLLECTOR_DB_URL / USERNAME / PASSWORD，不保留示例占位值。'); }
   for (const [file, override] of [['local/JD门槛.json', env.JD_COLLECTOR_CRITERIA_FILE], ['local/resume-starter.md', env.JD_RESUME_STARTER_FILE]]) {
     try { await fs.access(path.resolve(root, override || file)); report('PASS', file, '配置文件可访问。'); }

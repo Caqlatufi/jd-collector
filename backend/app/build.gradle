@@ -22,7 +22,8 @@ dependencies {
 
     runtimeOnly 'com.mysql:mysql-connector-j'
     runtimeOnly 'org.mariadb.jdbc:mariadb-java-client'
-    testRuntimeOnly 'com.h2database:h2'
+    // Keep the same file format in JD Collector and AI Interview Coach.
+    runtimeOnly 'com.h2database:h2:2.2.224'
 }
 
 def frontendDist = rootProject.file('../frontend/dist')

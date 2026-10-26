@@ -8,10 +8,9 @@ spring:
   application:
     name: jd-collector
   datasource:
-    url: ${JD_COLLECTOR_DB_URL:jdbc:mysql://127.0.0.1:3306/jd_collector?createDatabaseIfNotExist=true&useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Shanghai}
-    username: ${JD_COLLECTOR_DB_USERNAME:root}
+    url: ${JD_COLLECTOR_DB_URL:jdbc:h2:file:${JD_COLLECTOR_DATA_DIR:./local/data}/jd-collector;MODE=MySQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
+    username: ${JD_COLLECTOR_DB_USERNAME:sa}
     password: ${JD_COLLECTOR_DB_PASSWORD:}
-    driver-class-name: com.mysql.cj.jdbc.Driver
   jpa:
     open-in-view: false
     hibernate:

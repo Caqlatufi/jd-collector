@@ -12,7 +12,7 @@
 ## 项目概览
 
 - Java 17、Spring Boot 3.1.1、Spring Web、Bean Validation、Spring Data JPA、Lombok、Gradle 多模块。
-- 本地 MySQL；测试使用独立 H2。公共实体、仓储和响应由本项目维护，构建不需要私有框架。
+- 默认内嵌 H2 文件（2.2.224），兼容显式 MySQL；测试使用独立 H2。公共实体、仓储和响应由本项目维护，构建不需要私有框架。
 - `app` 提供本机单用户 REST API 和 Vue 静态页面，监听 `127.0.0.1:7890`，上下文路径 `/jd-collector`。
 - 外部招聘平台登录由 `account` 管理，不引入工作台自身的用户、角色、租户或登录鉴权体系。
 - 招聘平台登录与岗位读取在前端 Electron 内置标签完成；后端 account 仅保留历史读取与旧接口退役响应，不装配浏览器服务、不解密历史快照。
