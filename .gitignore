@@ -2,6 +2,8 @@ backend/.gradle/
 backend/**/build/
 backend/**/bin/
 frontend/node_modules/
+ops/mcp/node_modules/
+ops/jd-import/node_modules/
 frontend/dist/
 frontend/dist-electron/
 frontend/desktop-test-results/
@@ -31,3 +33,8 @@ backups/
 /.idea/
 /.vscode/
 /.DS_Store
+
+# Generated personal resumes, analysis exports and verification reports
+/output/
+/outputs/
+/docs/可能已关闭岗位复查_*.xlsx

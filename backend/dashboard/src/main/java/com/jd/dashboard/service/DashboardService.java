@@ -16,7 +16,8 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.ZoneId;
+import java.time.Clock;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.function.Function;
@@ -47,14 +48,20 @@ public class DashboardService {
             PostingEnums.Stage.OFFER
     );
 
+    private static final Set<PostingEnums.Stage> FEEDBACK_STAGES = EnumSet.of(
+            PostingEnums.Stage.HR_SCREEN, PostingEnums.Stage.WRITTEN_TEST, PostingEnums.Stage.INTERVIEW,
+            PostingEnums.Stage.OFFER, PostingEnums.Stage.ACCEPTED, PostingEnums.Stage.REJECTED
+    );
+
     private final JobPostingRepository postingRepository;
     private final InterviewRepository interviewRepository;
     private final StageEventRepository eventRepository;
     private final CompanyService companyService;
+    private final Clock clock;
 
     @Transactional(readOnly = true)
     public DashboardDtos.TodayResponse today() {
-        LocalDateTime now = LocalDateTime.now(ZoneId.of("Asia/Shanghai"));
+        LocalDateTime now = LocalDateTime.now(clock);
         LocalDate today = now.toLocalDate();
         LocalDateTime start = today.atStartOfDay();
         LocalDateTime end = today.atTime(LocalTime.MAX);
@@ -100,11 +107,31 @@ public class DashboardService {
     }
 
     private List<DashboardDtos.PlanItem> planItems(List<JobPosting> postings, LocalDateTime now) {
+        Map<Long, JobPosting> allPostings = postings.stream()
+                .collect(Collectors.toMap(JobPosting::getId, Function.identity()));
         Map<Long, JobPosting> active = postings.stream()
                 .filter(p -> ACTIVE_APPLICATION_STAGES.contains(p.getStage()) && p.getTier() != PostingEnums.Tier.SKIP)
                 .collect(Collectors.toMap(JobPosting::getId, Function.identity()));
         List<DashboardDtos.PlanItem> items = new ArrayList<>();
         List<Interview> allInterviews = interviewRepository.findAllByDeletedFalseOrderByScheduledAtAsc();
+        List<StageEvent> events = eventRepository.findAllByDeletedFalse();
+        Set<Long> feedbackIds = events.stream()
+                .filter(e -> FEEDBACK_STAGES.contains(e.getToStage()) || FEEDBACK_STAGES.contains(e.getFromStage()))
+                .map(StageEvent::getJobPostingId).collect(Collectors.toSet());
+        allInterviews.forEach(i -> feedbackIds.add(i.getJobPostingId()));
+        for (JobPosting p : postings) {
+            // 投递事实独立于评分和手填下一步；已结束岗位保留历史标记，但不再催反馈。
+            if (p.getAppliedAt() == null) continue;
+            LocalDateTime dueAt = p.getAppliedAt().plusDays(14);
+            boolean feedback = FEEDBACK_STAGES.contains(p.getStage()) || feedbackIds.contains(p.getId());
+            String state = TERMINAL_STAGES.contains(p.getStage())
+                    ? p.getStage() == PostingEnums.Stage.ACCEPTED ? "COMPLETED" : "ENDED"
+                    : feedback ? "FEEDBACK_RECEIVED" : now.isAfter(dueAt) ? "TIMED_OUT" : "WAITING_FEEDBACK";
+            items.add(new DashboardDtos.PlanItem("application-" + p.getId(), p.getId(), null,
+                    companyService.getEntity(p.getCompanyId()).getName(), p.getTitle(), p.getTier(),
+                    "APPLICATION", "已投递", "点击节点推进进度或修改记录；超过14天无反馈自动显示超时，收到反馈后恢复实际进度。",
+                    p.getAppliedAt(), state, dueAt, Math.max(0, ChronoUnit.DAYS.between(p.getAppliedAt(), now))));
+        }
         for (JobPosting p : active.values()) {
             boolean hasAction = p.getNextAction() != null && !p.getNextAction().isBlank();
             if (!hasAction && p.getNextActionAt() == null) continue;
@@ -118,22 +145,51 @@ public class DashboardService {
             items.add(new DashboardDtos.PlanItem("action-" + p.getId(), p.getId(), null,
                     companyService.getEntity(p.getCompanyId()).getName(), p.getTitle(), p.getTier(),
                     "FOLLOW_UP", hasAction ? p.getNextAction() : "待补下一步动作", "在 Pipeline 更新下一步或推进阶段；超期仅作提醒，不自动改变业务阶段。",
-                    p.getNextActionAt(), state));
+                    p.getNextActionAt(), state, null, null));
         }
         for (Interview i : allInterviews) {
-            JobPosting p = active.get(i.getJobPostingId());
-            if (p == null || i.getStatus() == InterviewEnums.Status.CANCELLED) continue;
-            String state = i.getStatus() == InterviewEnums.Status.COMPLETED ? "COMPLETED"
+            JobPosting p = allPostings.get(i.getJobPostingId());
+            if (p == null) continue;
+            String state = i.getStatus() == InterviewEnums.Status.CANCELLED ? "CANCELLED"
+                    : i.getStatus() == InterviewEnums.Status.COMPLETED ? "COMPLETED"
                     : i.getStatus() == InterviewEnums.Status.NO_SHOW ? "NO_SHOW"
+                    : TERMINAL_STAGES.contains(p.getStage()) ? "ENDED"
                     : i.getScheduledAt().isBefore(now) ? "OVERDUE" : "PLANNED";
             items.add(new DashboardDtos.PlanItem("interview-" + i.getId(), p.getId(), i.getId(),
                     companyService.getEntity(p.getCompanyId()).getName(), p.getTitle(), p.getTier(),
                     "INTERVIEW", "第 " + i.getRoundNo() + " 轮面试", interviewTypeName(i.getType()) + " · " + switch (i.getFormat()) {case ONLINE -> "线上"; case ONSITE -> "现场"; case PHONE -> "电话";}
-                    + (i.getNextStep() == null ? "" : " · " + i.getNextStep()), i.getScheduledAt(), state));
+                    + (i.getNextStep() == null ? "" : " · " + i.getNextStep()), i.getScheduledAt(), state, null, null));
+        }
+        for (StageEvent event : events) {
+            JobPosting p = allPostings.get(event.getJobPostingId());
+            if (p == null || p.getAppliedAt() == null || event.getOccurredAt().isBefore(p.getAppliedAt())) continue;
+            if (event.getToStage() == PostingEnums.Stage.APPLIED || event.getToStage() == event.getFromStage()) continue;
+            if (!ACTIVE_APPLICATION_STAGES.contains(event.getToStage()) && !TERMINAL_STAGES.contains(event.getToStage())) continue;
+            // 创建面试日程的系统事件由面试本体表达，不把创建时间误当作实际面试时间。
+            if (event.getNote() != null && event.getNote().matches("创建第 [0-9]+ 轮面试日程")) continue;
+            items.add(new DashboardDtos.PlanItem("stage-" + event.getId(), p.getId(), null,
+                    companyService.getEntity(p.getCompanyId()).getName(), p.getTitle(), p.getTier(),
+                    "STAGE", stageName(event.getToStage()), event.getNote(), event.getOccurredAt(),
+                    TERMINAL_STAGES.contains(event.getToStage()) && event.getToStage() != PostingEnums.Stage.ACCEPTED
+                            ? "ENDED" : "COMPLETED", null, null));
         }
         items.sort(Comparator.comparing(DashboardDtos.PlanItem::scheduledAt,
                 Comparator.nullsLast(Comparator.naturalOrder())).thenComparing(DashboardDtos.PlanItem::id));
         return items;
+    }
+
+    private String stageName(PostingEnums.Stage stage) {
+        return switch (stage) {
+            case HR_SCREEN -> "HR沟通";
+            case WRITTEN_TEST -> "笔试";
+            case INTERVIEW -> "面试阶段";
+            case OFFER -> "Offer";
+            case ACCEPTED -> "已接受";
+            case REJECTED -> "被拒";
+            case WITHDRAWN -> "主动终止";
+            case CLOSED -> "已关闭";
+            default -> stage.name();
+        };
     }
 
     private String interviewTypeName(InterviewEnums.Type type) {

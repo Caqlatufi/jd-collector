@@ -55,7 +55,7 @@ test('本地单用户求职主链路可从页面完成', async ({page}) => {
   await page.getByRole('button', {name: '保存并评分'}).click();
   await expect(page.getByText(jobTitle, {exact: true})).toBeVisible();
   await expect(page.locator('.el-table__row').filter({hasText: jobTitle}).getByText('A 档', {exact: true})).toBeVisible();
-  await page.locator('.el-table__row').filter({hasText: jobTitle}).getByRole('button', {name: '详情'}).click();
+  await page.locator('.el-table__row').filter({hasText: jobTitle}).getByRole('button', {name: jobTitle, exact: true}).click();
   await expect(page.getByRole('heading', {name: 'JD 原文'})).toBeVisible();
   await expect(page.getByText('负责 Java Spring Boot 后端、AI Agent 应用和平台工具开发。', {exact: true})).toBeVisible();
   await page.locator('.el-drawer__close-btn').click();
@@ -111,7 +111,7 @@ test('本地单用户求职主链路可从页面完成', async ({page}) => {
   await expect(interviewRow.getByText('已完成', {exact: true})).toBeVisible();
 
   await page.getByRole('menuitem', {name: 'JD 列表'}).click();
-  await page.locator('.el-table__row').filter({hasText: jobTitle}).getByRole('button', {name: '详情'}).click();
+  await page.locator('.el-table__row').filter({hasText: jobTitle}).getByRole('button', {name: jobTitle, exact: true}).click();
   await expect(page.getByText('已完成', {exact: true})).toBeVisible();
   await page.locator('.el-drawer__close-btn').click();
   const download = page.waitForEvent('download');

@@ -5,6 +5,11 @@ $projectRoot = Split-Path -Parent $PSScriptRoot
 $frontendRoot = Join-Path $projectRoot 'frontend'
 $asciiRoot = $env:JD_COLLECTOR_BUILD_ROOT
 $backendTarget = Join-Path $projectRoot 'backend'
+$importRoot = Join-Path $projectRoot 'ops\jd-import'
+if (-not (Test-Path -LiteralPath (Join-Path $importRoot 'node_modules\@langchain\langgraph\package.json'))) {
+    & npm.cmd ci --prefix $importRoot --ignore-scripts
+    if ($LASTEXITCODE -ne 0) { throw 'JD import runtime dependencies could not be installed.' }
+}
 
 Push-Location $frontendRoot
 try {

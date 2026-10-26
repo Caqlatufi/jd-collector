@@ -8,7 +8,7 @@ import {PlatformOperationError} from './browserWindows';
 
 export interface VisualTarget {
   view: WebContentsView; host: BrowserWindow; revision: number; epoch: number;
-  sourceUrl: string; title: string;
+  sourceUrl: string; title: string; background?: boolean;
 }
 interface StoredCapture {ref: CaptureRef; epoch: number; bitmap: Buffer; geometry: string}
 const fail = (code: string, message: string): never => { throw new PlatformOperationError(code, message); };
@@ -21,7 +21,8 @@ export class VisualCapture {
   private readonly batches = new Map<string, CaptureRef[]>();
   private readonly latest = new Map<string, StoredCapture>();
   private searchTarget?: {key: string; epoch: number; revision: number; time: number};
-  constructor(private readonly root: string, private readonly target: (request: CaptureRequest) => VisualTarget) {}
+  constructor(private readonly root: string,
+              private readonly target: (request: CaptureRequest, action?: VisualAction['action']) => VisualTarget) {}
   dispose() { this.disposed = true; this.latest.clear(); this.searchTarget = undefined; }
   private async exclusive<T>(operation: (assertActive: () => void) => Promise<T>): Promise<T> {
     if (this.busy) fail('READ_BUSY', '原生操作进行中，请等待结果');
@@ -61,8 +62,8 @@ export class VisualCapture {
       fail('INVALID_CAPTURE_RECT', '截图区域必须位于目标可见区域内');
     return result;
   }
-  private unchanged(request: CaptureRequest, original: VisualTarget, geometry: string) {
-    const current = this.target(request);
+  private unchanged(request: CaptureRequest, original: VisualTarget, geometry: string, action?: VisualAction['action']) {
+    const current = this.target(request, action);
     if (this.disposed || current.revision !== original.revision || current.sourceUrl !== original.sourceUrl ||
         current.view !== original.view || this.geometry(current) !== geometry)
       fail('PAGE_CHANGED', '页面、焦点或几何已改变，请重新截图');
@@ -75,7 +76,7 @@ export class VisualCapture {
       const target = this.target(request);
       const geometry = this.geometry(target);
       const rect = this.rect(target, request.rect);
-      const native = await target.view.webContents.capturePage(rect);
+      const native = await target.view.webContents.capturePage(rect, {stayHidden: Boolean(target.background)});
       assertActive();
       this.unchanged(request, target, geometry);
       if (Date.now() - started >= 12000) fail('CAPTURE_TIMEOUT', '截图超时，结果未发布');
@@ -121,7 +122,7 @@ export class VisualCapture {
   async act(request: VisualAction): Promise<ActionResult> {
     const started = Date.now();
     return this.exclusive(async assertActive => {
-      const target = this.target(request);
+      const target = this.target(request, request.action);
       const stored = this.latest.get(request.key);
       if (!stored || stored.ref.captureId !== request.captureId || stored.ref.platform !== request.platform ||
           Date.now() - Date.parse(stored.ref.capturedAt) > 30000 || stored.geometry !== this.geometry(target) ||
@@ -149,9 +150,9 @@ export class VisualCapture {
         if (request.action === 'click' && !['openJob', 'searchControl', 'pagination'].includes(request.intent || ''))
           fail('WORKFLOW_REJECTED', '点击仅允许岗位、搜索控件或翻页');
       }
-      const currentImage = await target.view.webContents.capturePage(evidence.ref.rect);
+      const currentImage = await target.view.webContents.capturePage(evidence.ref.rect, {stayHidden: Boolean(target.background)});
       assertActive();
-      this.unchanged(request, target, evidence.geometry);
+      this.unchanged(request, target, evidence.geometry, request.action);
       if (Date.now() - started >= 12000) fail('CAPTURE_TIMEOUT', '操作前核实超时，未发送输入');
       if (!currentImage.toBitmap().equals(evidence.bitmap)) fail('STALE_CAPTURE', '可见画面已变化，请重新截图确认');
       this.latest.delete(request.key);
@@ -180,7 +181,7 @@ export class VisualCapture {
           (request.action === 'key' && !request.keyCode?.startsWith('Zoom') && !['Enter', 'Tab', 'Escape'].includes(request.keyCode!))) {
         await new Promise(resolve => setTimeout(resolve, 50));
         try {
-          const current = this.target(request);
+          const current = this.target(request, request.action);
           if (current.revision === target.revision) this.searchTarget = {key: request.key, epoch: current.epoch, revision: current.revision, time: Date.now()};
         } catch { /* A submitted search may already have navigated; it is not an input target. */ }
       }

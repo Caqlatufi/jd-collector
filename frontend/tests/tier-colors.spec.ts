@@ -16,7 +16,7 @@ test('四档颜色在列表、详情、预测、筛选、Pipeline、看板一致
   await page.getByRole('menuitem',{name:'JD 列表'}).click();
   await expect(page.getByText(/通勤按已保存的 JD 门槛核实/)).toBeVisible();
   await check('.tier-legend');await check('.el-table__body');
-  await page.locator('.el-table__row').first().getByRole('button',{name:'详情'}).click();
+  await page.locator('.el-table__row').first().getByRole('button', {name: rows[0].title, exact: true}).click();
   await expect(page.locator('.el-drawer .tier-badge')).toHaveCSS('background-color',expected.S);
   await page.locator('.el-drawer__close-btn').click();
   await page.getByRole('button',{name:'新增 JD'}).click();

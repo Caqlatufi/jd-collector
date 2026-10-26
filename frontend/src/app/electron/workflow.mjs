@@ -4,7 +4,7 @@ import path from 'node:path';
 import {localEnvironment} from '../../common/desktop/main/localEnvironment.mjs';
 
 const [platform, action = 'tabs', ...args] = process.argv.slice(2);
-if (!['BOSS', 'LIEPIN', 'JOB51', 'ZHAOPIN'].includes(platform) || !['open', 'tabs', 'focus', 'inspect', 'read', 'navigate', 'diagnose', 'capture', 'scroll', 'click', 'type', 'key'].includes(action)) {
+if (!['WEB', 'BOSS', 'LIEPIN', 'JOB51', 'ZHAOPIN'].includes(platform) || !['info', 'open', 'openJob', 'tabs', 'focus', 'inspect', 'read', 'navigate', 'diagnose', 'capture', 'scroll', 'click', 'type', 'key'].includes(action)) {
   console.error('Usage: workflow.mjs PLATFORM open|tabs|focus|navigate [url] [key] OR capture|scroll|click|type|key --key KEY [--capture ID --x N --y N --delta-x N --delta-y N --intent openJob|searchControl|pagination --text TEXT --replace true|false --key-code Enter|SelectAll --batch ID --rect x,y,w,h]');
   process.exit(1);
 }
@@ -27,8 +27,8 @@ try {
     }
     if (!payload.key) throw new Error('Explicit --key required');
   } else {
-    if (args.length > (action === 'navigate' ? 2 : 1)) throw new Error('Too many arguments');
-    payload = action === 'navigate' ? {url: args[0], key: args[1]} : {key: args[0]};
+    if (args.length > (['navigate', 'openJob'].includes(action) ? 2 : 1)) throw new Error('Too many arguments');
+    payload = ['navigate', 'openJob'].includes(action) ? {url: args[0], key: args[1]} : {key: args[0]};
   }
   const env = localEnvironment();
   const userData = env.JD_DESKTOP_USER_DATA || path.join(env.APPDATA || '', 'JD Collector');

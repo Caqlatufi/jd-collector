@@ -28,12 +28,13 @@ public class ExportController {
     @GetMapping(value = "/export.csv", produces = "text/csv")
     public ResponseEntity<byte[]> export(
             @RequestParam(defaultValue = "") String keyword,
-            @RequestParam(required = false) List<PostingEnums.Direction> direction,
+            @RequestParam(required = false) List<String> direction,
             @RequestParam(required = false) List<PostingEnums.Tier> tier,
             @RequestParam(required = false) List<PostingEnums.Stage> stage,
-            @RequestParam(required = false) Long companyId
+            @RequestParam(required = false) Long companyId,
+            @RequestParam(defaultValue = "SCORE") PostingEnums.SortBy sortBy
     ) {
-        List<PostingDtos.Response> rows = postingService.exportRows(keyword, direction, tier, stage, companyId);
+        List<PostingDtos.Response> rows = postingService.exportRows(keyword, direction, tier, stage, companyId, sortBy);
         StringBuilder csv = new StringBuilder("\uFEFF");
         csv.append("公司,岗位,方向,来源,链接,地点,薪资下限K,薪资上限K,薪资月数,总分,等级,风险,建议动作,阶段,简历版本,投递时间,下一步,下一步时间,更新时间\r\n");
         for (PostingDtos.Response row : rows) {

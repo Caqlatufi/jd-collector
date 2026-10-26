@@ -44,6 +44,14 @@ public class InterviewController {
         return RestResultResponse.of(service.create(postingId, request));
     }
 
+    @PostMapping("/postings/{postingId}/interview-schedule")
+    public RestResultResponse<InterviewDtos.Response> schedule(
+            @PathVariable Long postingId,
+            @Valid @RequestBody InterviewDtos.ScheduleRequest request
+    ) {
+        return RestResultResponse.of(service.scheduleNext(postingId, request));
+    }
+
     @PutMapping("/interviews/{id}")
     public RestResultResponse<InterviewDtos.Response> update(
             @PathVariable Long id,

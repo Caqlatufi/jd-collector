@@ -27,7 +27,7 @@ public class PostingKnowledgeController {
     @GetMapping("/postings")
     public RestResultResponse<List<PostingKnowledgeDtos.PostingOption>> options(
             @RequestParam(defaultValue = "") String keyword,
-            @RequestParam(required = false) List<PostingEnums.Direction> direction,
+            @RequestParam(required = false) List<String> direction,
             @RequestParam(required = false) List<PostingEnums.Tier> tier,
             @RequestParam(required = false) List<PostingEnums.Stage> stage
     ) {

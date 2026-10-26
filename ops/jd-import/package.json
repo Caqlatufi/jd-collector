@@ -1,0 +1,12 @@
+{
+  "name": "jd-collector-import",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test importer.test.mjs address-graph.test.mjs"
+  },
+  "dependencies": {
+    "@langchain/core": "0.3.80",
+    "@langchain/langgraph": "0.2.74"
+  }
+}

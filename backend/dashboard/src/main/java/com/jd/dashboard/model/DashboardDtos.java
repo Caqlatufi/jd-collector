@@ -70,7 +70,9 @@ public final class DashboardDtos {
             String title,
             String description,
             LocalDateTime scheduledAt,
-            String status
+            String status,
+            LocalDateTime feedbackDueAt,
+            Long elapsedDays
     ) {
     }
 }

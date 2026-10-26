@@ -3,6 +3,7 @@ package com.jd.interview.model;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Size;
+import com.jd.posting.model.PostingEnums;
 
 import java.time.LocalDateTime;
 
@@ -21,6 +22,15 @@ public final class InterviewDtos {
             String questions,
             String feedback,
             @Size(max = 500, message = "下一步不能超过500个字符") String nextStep
+    ) {
+    }
+
+    public record ScheduleRequest(
+            @NotNull(message = "当前阶段不能为空，请刷新后重试") PostingEnums.Stage expectedStage,
+            @NotNull(message = "请填写面试时间") LocalDateTime scheduledAt,
+            @NotNull(message = "面试类型不能为空") InterviewEnums.Type type,
+            @NotNull(message = "面试形式不能为空") InterviewEnums.Format format,
+            @Size(max = 500, message = "面试备注不能超过500个字符") String note
     ) {
     }
 

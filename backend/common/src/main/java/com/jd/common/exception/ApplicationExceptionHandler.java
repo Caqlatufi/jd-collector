@@ -4,6 +4,7 @@ import jakarta.validation.ConstraintViolationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -35,6 +36,12 @@ public class ApplicationExceptionHandler {
     public ResponseEntity<RestResponse> handleConstraintViolation(ConstraintViolationException exception) {
         return ResponseEntity.badRequest()
                 .body(RestResponse.error(ErrorCode.VALIDATION_ERROR.getCode(), exception.getMessage()));
+    }
+
+    @ExceptionHandler(HttpMessageNotReadableException.class)
+    public ResponseEntity<RestResponse> handleUnreadableRequest(HttpMessageNotReadableException exception) {
+        return ResponseEntity.badRequest()
+                .body(RestResponse.error(ErrorCode.VALIDATION_ERROR.getCode(), "请求字段格式或枚举值不正确"));
     }
 
     @ExceptionHandler(Exception.class)

@@ -8,7 +8,8 @@ const choose = async (page: Page, scope: Locator, label: string, option: string)
   await page.getByRole('option', {name: option, exact: true}).click();
 };
 
-test('JD确认投递后才进入Pipeline，下一步可暂时留空（模拟响应只读）', async ({page}) => {
+test('JD投递弹窗仅记录简历、时间和备注，确认后才进入Pipeline（模拟响应只读）', async ({page}) => {
+  await page.setViewportSize({width: 1665, height: 1000});
   let applied = false;
   let submitted: Record<string, unknown> = {};
   const basePosting = {
@@ -45,22 +46,34 @@ test('JD确认投递后才进入Pipeline，下一步可暂时留空（模拟响�
   const row = page.locator('.el-table__row').filter({hasText: basePosting.title});
   await expect(row.getByRole('button', {name: '投递', exact: true})).toBeVisible();
   await expect(page.locator('.el-table__row').filter({hasText: skippedPosting.title}).getByRole('button', {name: '投递', exact: true})).toHaveCount(0);
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
   await row.getByRole('button', {name: '投递', exact: true}).click();
   const dialog = page.getByRole('dialog');
   await expect(dialog).toContainText('确认后该岗位才会进入 Pipeline');
+  await expect(dialog.locator('.el-form-item')).toHaveCount(3);
+  await expect(dialog.getByText('下一步动作（可选）', {exact: true})).toHaveCount(0);
+  await expect(dialog.getByText('下一步时间（可选）', {exact: true})).toHaveCount(0);
   await choose(page, dialog, '实际使用简历', 'Java后端版 · 2026.09-v1');
+  await formItem(dialog, '投递备注').locator('textarea').fill('已在招聘平台提交简历');
+  await page.evaluate(() => Promise.all(document.getAnimations().map(animation => animation.finished.catch(() => {}))));
+  await page.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => requestAnimationFrame(() => resolve()))));
+  await page.screenshot({path: 'test-results/application-entry.png'});
   await dialog.getByRole('button', {name: '确认已投递'}).click();
 
   await expect.poll(() => submitted.toStage).toBe('APPLIED');
   expect(submitted.resumeVersionId).toBe(701);
+  expect(submitted.appliedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
+  expect(submitted.note).toBe('已在招聘平台提交简历');
   expect(submitted.nextAction).toBeUndefined();
   expect(submitted.nextActionAt).toBeUndefined();
-  await expect(row.getByText('已在 Pipeline', {exact: true})).toBeVisible();
+  await expect(row.getByText('已在 Pipeline', {exact: true})).toHaveCount(0);
+  await expect(row.getByRole('button', {name: '打招呼', exact: true})).toHaveCount(0);
+  await expect(row.getByRole('button', {name: '已投递', exact: true})).toBeVisible();
 
   await page.getByRole('menuitem', {name: '投递 Pipeline'}).click();
   await expect(page.getByText(basePosting.title, {exact: true})).toBeVisible();
   await expect(page.getByText(skippedPosting.title, {exact: true})).toHaveCount(0);
-  await expect(page.getByText('暂无待办', {exact: true})).toBeVisible();
+  await expect(page.getByText('等待反馈', {exact: true})).toBeVisible();
   await expect(page.getByRole('button', {name: '已收集'})).toHaveCount(0);
   await expect(page.getByRole('button', {name: '已筛选'})).toHaveCount(0);
 });

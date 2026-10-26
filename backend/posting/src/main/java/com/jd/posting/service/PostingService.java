@@ -22,6 +22,9 @@ import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Locale;
+import java.net.URI;
+import java.net.URISyntaxException;
 
 @RequiredArgsConstructor
 public class PostingService {
@@ -32,35 +35,84 @@ public class PostingService {
     private final JobPostingRepository repository;
     private final CompanyService companyService;
     private final ResumeVersionRepository resumeVersionRepository;
+    private final PostingDirectionService directionService;
+    private final com.jd.company.service.CompanyAddressDiscoveryService addressDiscoveries;
+
+    @Transactional
+    public com.jd.company.model.CompanyAddressDtos.Response saveDiscoveredAddress(Long id,
+            com.jd.company.model.CompanyAddressDtos.SaveRequest request) {
+        var posting = repository.findByIdForUpdate(id).orElseThrow(() ->
+                new BusinessException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "JD不存在"));
+        if (!java.util.Objects.equals(posting.getSourceUrl(), request.expectedPostingUrl())
+                || !java.util.Objects.equals(request.sourceUrl(), request.expectedPostingUrl()))
+            throw new BusinessException(ErrorCode.CONFLICT, HttpStatus.CONFLICT, "JD链接已变化，请重新核对岗位地址");
+        if (!java.util.Objects.equals(posting.getLocation(), request.expectedLocation())
+                && !java.util.Objects.equals(posting.getLocation(), request.address()))
+            throw new BusinessException(ErrorCode.CONFLICT, HttpStatus.CONFLICT, "JD地址已被修改，请重新核对");
+        var result = addressDiscoveries.record(posting.getCompanyId(), posting.getId(), request);
+        posting.setLocation(result.address());
+        repository.save(posting);
+        return result;
+    }
 
     @Transactional(readOnly = true)
     public Page<PostingDtos.Response> search(
             String keyword,
-            Collection<PostingEnums.Direction> directions,
+            Collection<String> directions,
             Collection<PostingEnums.Tier> tiers,
             Collection<PostingEnums.Stage> stages,
             Long companyId,
             Long resumeVersionId,
+            PostingEnums.SortBy sortBy,
             int number,
             int size
     ) {
         PageRequest pageable = PageRequest.of(Math.max(0, number - 1), Math.min(Math.max(size, 1), 100),
-                SCORE_ORDER);
-        return repository.findAll(specification(keyword, directions, tiers, stages, companyId, resumeVersionId), pageable)
+                sortBy == PostingEnums.SortBy.BOSS_COMPETITION ? Sort.unsorted() : SCORE_ORDER);
+        return repository.findAll(orderedSpecification(
+                        specification(keyword, directions, tiers, stages, companyId, resumeVersionId), sortBy), pageable)
                 .map(this::toResponse);
     }
 
     @Transactional(readOnly = true)
     public List<PostingDtos.Response> exportRows(
             String keyword,
-            Collection<PostingEnums.Direction> directions,
+            Collection<String> directions,
             Collection<PostingEnums.Tier> tiers,
             Collection<PostingEnums.Stage> stages,
-            Long companyId
+            Long companyId,
+            PostingEnums.SortBy sortBy
     ) {
-        return repository.findAll(specification(keyword, directions, tiers, stages, companyId, null),
-                        SCORE_ORDER)
+        return repository.findAll(orderedSpecification(
+                        specification(keyword, directions, tiers, stages, companyId, null), sortBy),
+                        sortBy == PostingEnums.SortBy.BOSS_COMPETITION ? Sort.unsorted() : SCORE_ORDER)
                 .stream().map(this::toResponse).toList();
+    }
+
+    private Specification<JobPosting> orderedSpecification(
+            Specification<JobPosting> filters, PostingEnums.SortBy sortBy
+    ) {
+        if (sortBy != PostingEnums.SortBy.BOSS_COMPETITION) return filters;
+        return (root, query, builder) -> {
+            Predicate predicate = filters.toPredicate(root, query, builder);
+            // 排序发生在分页之前；计数查询不需要 ORDER BY。
+            if (query.getResultType() != Long.class && query.getResultType() != long.class) {
+                Predicate available = builder.and(
+                        builder.equal(root.get("bossCompetitionStatus"), PostingEnums.BossCompetitionStatus.AVAILABLE),
+                        builder.isNotNull(root.get("bossSurpassedPercent")),
+                        builder.greaterThan(root.<Integer>get("bossRank"), 0),
+                        builder.greaterThan(root.<Integer>get("bossCompetitorCount"), 0));
+                var percentage = builder.<Double>selectCase()
+                        .when(available, builder.toDouble(root.get("bossSurpassedPercent"))).otherwise(-1.0);
+                var rank = builder.<Double>selectCase()
+                        .when(available, builder.toDouble(root.get("bossRank"))).otherwise(1.0);
+                var count = builder.<Double>selectCase()
+                        .when(available, builder.toDouble(root.get("bossCompetitorCount"))).otherwise(1.0);
+                query.orderBy(builder.desc(percentage), builder.asc(builder.quot(rank, count)),
+                        builder.desc(root.get("totalScore")), builder.desc(root.get("id")));
+            }
+            return predicate;
+        };
     }
 
     @Transactional(readOnly = true)
@@ -90,13 +142,154 @@ public class PostingService {
 
     @Transactional
     public PostingDtos.Response update(Long id, PostingDtos.SaveRequest request) {
-        JobPosting posting = getEntity(id);
+        JobPosting posting = getEntityForUpdate(id);
         apply(posting, request);
         return toResponse(repository.save(posting));
     }
 
+    @Transactional
+    public void archive(Long id) {
+        JobPosting posting = getEntityForUpdate(id);
+        posting.setDeleted(true);
+        repository.save(posting);
+    }
+
+    @Transactional
+    public PostingDtos.Response updateSourceUrl(Long id, PostingDtos.SourceUrlRequest request) {
+        String url = request.sourceUrl().trim();
+        try {
+            URI parsed = new URI(url);
+            if (!"https".equalsIgnoreCase(parsed.getScheme()) || parsed.getHost() == null || parsed.getUserInfo() != null) {
+                throw new URISyntaxException(url, "Invalid JD URL");
+            }
+        } catch (URISyntaxException exception) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, "请填写完整的 HTTPS 岗位链接");
+        }
+        JobPosting posting = getEntityForUpdate(id);
+        String previous = posting.getSourceUrl() == null ? "" : posting.getSourceUrl().trim();
+        if (!previous.equals(request.expectedSourceUrl().trim())) {
+            throw new BusinessException(ErrorCode.CONFLICT, HttpStatus.CONFLICT, "岗位链接已更新，请刷新后重试");
+        }
+        if (findSource(url).stream().anyMatch(existing -> !existing.id().equals(id))) {
+            throw new BusinessException(ErrorCode.CONFLICT, HttpStatus.CONFLICT, "该链接已用于其他 JD，请核对岗位");
+        }
+        if (!url.equals(previous)) clearBossCompetition(posting);
+        posting.setSourceUrl(url);
+        return toResponse(repository.save(posting));
+    }
+
+    @Transactional
+    public PostingDtos.Response updateBossCompetition(Long id, PostingDtos.BossCompetitionRequest request) {
+        JobPosting posting = getEntityForUpdate(id);
+        String sourceUrl = posting.getSourceUrl() == null ? "" : posting.getSourceUrl().trim();
+        if (!sourceUrl.equals(request.expectedSourceUrl().trim())) {
+            throw new BusinessException(ErrorCode.CONFLICT, HttpStatus.CONFLICT, "岗位链接已更新，请重新打开岗位采集竞争力");
+        }
+        if (!isBossJobUrl(sourceUrl)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, "竞争力报告仅适用于 BOSS 岗位直链");
+        }
+        boolean available = request.status() == PostingEnums.BossCompetitionStatus.AVAILABLE;
+        if (available && (request.rank() == null || request.competitorCount() == null
+                || request.surpassedPercent() == null || request.rank() > request.competitorCount())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, "请填写完整竞争力数据，排名不能超过总人数");
+        }
+        if (!available && (request.rank() != null || request.competitorCount() != null
+                || request.surpassedPercent() != null || trimToNull(request.note()) == null)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, "无报告或已关闭时请仅记录原因，不填写竞争力数值");
+        }
+        posting.setBossRank(request.rank());
+        posting.setBossCompetitorCount(request.competitorCount());
+        posting.setBossSurpassedPercent(request.surpassedPercent());
+        posting.setBossCompetitionCheckedAt(request.checkedAt());
+        posting.setBossCompetitionStatus(request.status());
+        posting.setBossCompetitionNote(trimToNull(request.note()));
+        posting.setBossCompetitionEvidencePath(request.evidencePath().trim());
+        return toResponse(repository.save(posting));
+    }
+
+    private boolean isBossJobUrl(String url) {
+        try {
+            URI parsed = new URI(url);
+            String host = parsed.getHost();
+            return "https".equalsIgnoreCase(parsed.getScheme()) && parsed.getUserInfo() == null
+                    && parsed.getPort() == -1 && ("www.zhipin.com".equalsIgnoreCase(host) || "zhipin.com".equalsIgnoreCase(host))
+                    && parsed.getPath() != null && parsed.getPath().matches("/job_detail/[^/]+\\.html");
+        } catch (URISyntaxException exception) {
+            return false;
+        }
+    }
+
+    private void clearBossCompetition(JobPosting posting) {
+        posting.setBossRank(null);
+        posting.setBossCompetitorCount(null);
+        posting.setBossSurpassedPercent(null);
+        posting.setBossCompetitionCheckedAt(null);
+        posting.setBossCompetitionStatus(null);
+        posting.setBossCompetitionNote(null);
+        posting.setBossCompetitionEvidencePath(null);
+    }
+
+    @Transactional
+    public PostingDtos.Response updateCommute(Long id, PostingDtos.CommuteRequest request) {
+        if (request.minMinutes() > request.maxMinutes()) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, HttpStatus.BAD_REQUEST, "时间下限不能大于上限");
+        }
+        JobPosting posting = getEntityForUpdate(id);
+        String previous = posting.getRiskNotes() == null ? "" : posting.getRiskNotes();
+        if (!previous.equals(request.expectedRiskNotes())) {
+            throw new BusinessException(ErrorCode.CONFLICT, HttpStatus.CONFLICT, "通勤或风险备注已更新，请刷新后重新填写");
+        }
+        String note = trimToNull(request.note());
+        String range = request.minMinutes().equals(request.maxMinutes()) ? request.minMinutes().toString()
+                : request.minMinutes() + "–" + request.maxMinutes();
+        int score = commuteScore(request.maxMinutes());
+        String supplement = "【通勤估算】" + range + " 分钟（手动填写）\n【通勤备注】"
+                + (note == null ? "" : note)
+                + "\n【通勤评分】" + score + "/15（按时间上限" + request.maxMinutes() + "分钟计算）";
+        posting.setRiskNotes(supplement + (previous.isEmpty() ? "" : "\n\n" + previous));
+        recalculateCommuteScore(posting, score);
+        return toResponse(repository.save(posting));
+    }
+
+    // 手动提交的范围按上限计分，避免跨越一小时的范围按较短端计为合格。
+    private int commuteScore(int maxMinutes) {
+        if (maxMinutes <= 30) return 15;
+        if (maxMinutes <= 45) return 12;
+        if (maxMinutes <= 60) return 10;
+        return 0;
+    }
+
+    private void recalculateCommuteScore(JobPosting posting, int score) {
+        boolean blocking = Boolean.TRUE.equals(posting.getBlockingRisk());
+        PostingEnums.Tier previousDefault = defaultTier(posting.getTotalScore(), blocking);
+        boolean hasOverride = trimToNull(posting.getManualOverrideReason()) != null;
+        boolean tierOverridden = hasOverride && posting.getTier() != previousDefault;
+        boolean recommendationOverridden = hasOverride
+                && posting.getRecommendation() != defaultRecommendation(previousDefault);
+
+        int total = posting.getMatchScore() + posting.getCompanyScore() + posting.getFreshnessScore()
+                + score + posting.getSalaryScore();
+        PostingEnums.Tier nextDefault = defaultTier(total, blocking);
+        posting.setCommuteScore(score);
+        posting.setTotalScore(total);
+        if (blocking || !tierOverridden) posting.setTier(nextDefault);
+        if (blocking || !recommendationOverridden) {
+            posting.setRecommendation(defaultRecommendation(nextDefault));
+        }
+        if (posting.getTier() == nextDefault
+                && posting.getRecommendation() == defaultRecommendation(nextDefault)) {
+            posting.setManualOverrideReason(null);
+        }
+    }
+
     public JobPosting getEntity(Long id) {
         return repository.findByIdAndDeletedFalse(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "岗位不存在"));
+    }
+
+    // Call only within a write transaction, shared by editing and stage transitions.
+    public JobPosting getEntityForUpdate(Long id) {
+        return repository.findByIdForUpdate(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, HttpStatus.NOT_FOUND, "岗位不存在"));
     }
 
@@ -110,7 +303,9 @@ public class PostingService {
         }
         return new PostingDtos.Response(
                 posting.getId(), posting.getCompanyId(), company.getName(), posting.getTitle(), posting.getDirection(),
-                posting.getSource(), posting.getSourceUrl(), posting.getRawJd(), posting.getLocation(),
+                posting.getSource(), posting.getSourceUrl(), posting.getBossRank(), posting.getBossCompetitorCount(),
+                posting.getBossSurpassedPercent(), posting.getBossCompetitionCheckedAt(),
+                posting.getBossCompetitionStatus(), posting.getBossCompetitionNote(), posting.getRawJd(), posting.getLocation(),
                 posting.getSalaryMinK(), posting.getSalaryMaxK(), posting.getSalaryMonths(),
                 posting.getExperienceMin(), posting.getExperienceMax(), posting.getPublishedAt(),
                 posting.getRecruiterActiveAt(), posting.getOfficialSynchronized(), posting.getRequiredSkills(),
@@ -130,9 +325,11 @@ public class PostingService {
 
         posting.setCompanyId(request.companyId());
         posting.setTitle(request.title().trim());
-        posting.setDirection(request.direction());
+        posting.setDirection(directionService.resolve(request.direction(), request.newDirection()));
         posting.setSource(request.source());
-        posting.setSourceUrl(trimToNull(request.sourceUrl()));
+        String sourceUrl = trimToNull(request.sourceUrl());
+        if (!java.util.Objects.equals(posting.getSourceUrl(), sourceUrl)) clearBossCompetition(posting);
+        posting.setSourceUrl(sourceUrl);
         posting.setRawJd(request.rawJd().trim());
         posting.setLocation(trimToNull(request.location()));
         posting.setSalaryMinK(request.salaryMinK());
@@ -204,7 +401,7 @@ public class PostingService {
 
     private Specification<JobPosting> specification(
             String keyword,
-            Collection<PostingEnums.Direction> directions,
+            Collection<String> directions,
             Collection<PostingEnums.Tier> tiers,
             Collection<PostingEnums.Stage> stages,
             Long companyId,
@@ -214,10 +411,16 @@ public class PostingService {
             List<Predicate> predicates = new ArrayList<>();
             predicates.add(builder.isFalse(root.get("deleted")));
             if (keyword != null && !keyword.isBlank()) {
-                String pattern = "%" + keyword.trim().toLowerCase() + "%";
+                String pattern = "%" + keyword.trim().toLowerCase(Locale.ROOT) + "%";
+                var companies = query.subquery(Long.class);
+                var company = companies.from(Company.class);
+                companies.select(company.get("id")).where(
+                        builder.isFalse(company.get("deleted")),
+                        builder.like(builder.lower(company.get("name")), pattern));
                 predicates.add(builder.or(
                         builder.like(builder.lower(root.get("title")), pattern),
-                        builder.like(builder.lower(root.get("rawJd")), pattern)
+                        builder.like(builder.lower(root.get("rawJd")), pattern),
+                        root.get("companyId").in(companies)
                 ));
             }
             if (directions != null && !directions.isEmpty()) {

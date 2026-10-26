@@ -5,17 +5,16 @@ public final class PostingEnums {
     private PostingEnums() {
     }
 
-    public enum Direction {
-        JAVA_BACKEND,
-        PLATFORM_BACKEND,
-        AI_APPLICATION,
-        FULL_STACK,
-        AI_TOOLING,
-        TEST_PLATFORM
-    }
-
     public enum Source {
         BOSS, LIEPIN, OFFICIAL, OTHER
+    }
+
+    public enum BossCompetitionStatus {
+        AVAILABLE, UNAVAILABLE, CLOSED
+    }
+
+    public enum SortBy {
+        SCORE, BOSS_COMPETITION
     }
 
     public enum Tier {
@@ -30,6 +29,9 @@ public final class PostingEnums {
         COLLECTED,
         SCREENED,
         TO_CONTACT,
+        MESSAGE_SENT,
+        WAITING_COMMUNICATION,
+        CONTACT_NOT_SUITABLE,
         READY_TO_APPLY,
         APPLIED,
         HR_SCREEN,

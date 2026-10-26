@@ -4,7 +4,7 @@ import {pathToFileURL} from 'node:url';
 import {DESKTOP_EVENT_CHANNEL} from '../contract';
 import type {BrowserState, DesktopEnvelope} from '../contract';
 import type {PlatformAdapter, PlatformDefinition, PlatformCode} from '../platform';
-import type {CaptureRequest} from '../capture';
+import type {CaptureRequest, VisualAction} from '../capture';
 import type {VisualTarget} from './capture';
 
 export class PlatformOperationError extends Error {
@@ -13,10 +13,13 @@ export class PlatformOperationError extends Error {
 
 export interface BrowserShell {html: string; host: BrowserWindow; workbench: WebContentsView}
 export const WORKBENCH_KEY = 'jd-workbench';
-interface Entry {view: WebContentsView; partition: string; requestedUrl: string; state: BrowserState; revision: number}
+interface Entry {
+  view: WebContentsView; partition: string; requestedUrl: string; state: BrowserState; revision: number;
+  backgroundJob: boolean; offscreen: boolean; visualEpoch: number;
+}
 const TOOLBAR_HEIGHT = 98;
 
-/** Each tab owns a live WebContents; focus and hide never reload the document. */
+/** Normal tabs keep their document; task tabs hand off between offscreen capture and manual browsing. */
 export class BrowserWindows {
   private readonly entries = new Map<string, Entry>();
   private host?: BrowserWindow;
@@ -80,7 +83,7 @@ export class BrowserWindows {
   }
   private publish(entry: Entry) {
     const contents = entry.view.webContents;
-    if (contents.isDestroyed()) return;
+    if (contents.isDestroyed() || this.entries.get(entry.state.key) !== entry) return;
     entry.state = {...entry.state, active: entry.state.key === this.activeKey,
       platform: this.adapterFor(contents.getURL() || entry.requestedUrl)?.platform, pageRevision: entry.revision,
       zoomFactor: contents.getZoomFactor(),
@@ -91,21 +94,27 @@ export class BrowserWindows {
   private update(entry: Entry, status: BrowserState['status'], message: string) {
     entry.state = {...entry.state, status, message}; this.publish(entry);
   }
-  private create(key: string, partition: string, title: string, options?: WebContentsViewConstructorOptions): Entry {
+  private create(key: string, partition: string, title: string, options?: WebContentsViewConstructorOptions,
+                 backgroundJob = false, offscreen = false): Entry {
     if (this.entries.size >= 30) throw new Error('网页标签已达30个，请先关闭不用的标签');
     const host = this.ensureHost();
-    const view = new WebContentsView({...options, webPreferences: {...options?.webPreferences, partition, nodeIntegration: false, contextIsolation: true,
-      sandbox: true, backgroundThrottling: false}});
-    const entry: Entry = {view, partition, requestedUrl: '', revision: 0, state: {key, title, url: '', status: 'loading', message: '正在打开网页'}};
+    // Link gestures can supply webContents: undefined. The view constructor treats
+    // a present property as an adoption request, so only pass a real WebContents.
+    const view = new WebContentsView({...(options?.webContents ? {webContents: options.webContents} : {}),
+      webPreferences: {...options?.webPreferences, partition, nodeIntegration: false, contextIsolation: true,
+      sandbox: true, backgroundThrottling: false, ...(offscreen ? {offscreen: true} : {})}});
+    if (offscreen) view.setVisible(false);
+    const entry: Entry = {view, partition, requestedUrl: '', revision: 0, backgroundJob, offscreen, visualEpoch: 0,
+      state: {key, title, url: '', status: 'loading', message: '正在打开网页'}};
     this.entries.set(key, entry);
     host.contentView.addChildView(view);
     const contents = view.webContents;
     this.installZoom(contents, () => key);
-    contents.on('before-input-event', () => { this.visualEpoch++; });
+    contents.on('before-input-event', () => { this.visualEpoch++; entry.visualEpoch++; });
     contents.on('before-mouse-event', (_event, input) => {
-      if (input.type === 'mouseDown' || input.type === 'mouseWheel') this.visualEpoch++;
+      if (input.type === 'mouseDown' || input.type === 'mouseWheel') { this.visualEpoch++; entry.visualEpoch++; }
     });
-    contents.on('blur', () => { this.visualEpoch++; });
+    contents.on('blur', () => { this.visualEpoch++; entry.visualEpoch++; });
     contents.on('did-start-navigation', (_event, _url, _inPlace, mainFrame) => {
       if (mainFrame) { entry.revision++; this.publish(entry); }
     });
@@ -139,18 +148,26 @@ export class BrowserWindows {
     contents.on('will-redirect', (event, url) => {
       try { this.validateUrl(url); } catch { event.preventDefault(); this.update(entry, 'failed', '已阻止不支持的网页重定向'); }
     });
-    contents.setWindowOpenHandler(({url}) => {
+    contents.setWindowOpenHandler(({url, disposition, referrer, postBody}) => {
+      if (entry.offscreen) return {action: 'deny'};
       try { if (url !== 'about:blank') this.validateUrl(url); } catch { return {action: 'deny'}; }
       if (this.entries.size >= 30) return {action: 'deny'};
       return {action: 'allow', outlivesOpener: true, createWindow: options => {
+        // Electron also supplies an optional guest, absent from BrowserWindow's public type.
+        const childOptions: WebContentsViewConstructorOptions = options;
         const childPartition = this.adapterFor(url) ? 'persist:jd-browser-' + this.adapterFor(url)!.sessionKey : partition;
-        const child = this.create('popup-' + ++this.popupSequence, childPartition, '新标签页', options);
+        const child = this.create('popup-' + ++this.popupSequence, childPartition, '新标签页', childOptions);
         child.requestedUrl = url;
-        this.focus(child.state.key);
+        // For middle/Ctrl clicks Chromium has not created a guest document.
+        // createWindow takes responsibility for loading it, including referrer/POST.
+        if (!childOptions.webContents) void child.view.webContents.loadURL(url, {httpReferrer: referrer,
+          ...(postBody ? {postData: postBody.data} : {})}).catch(() => {});
+        if (disposition === 'background-tab') { this.layout(); this.publish(child); }
+        else this.focus(child.state.key);
         return child.view.webContents;
       }};
     });
-    contents.on('destroyed', () => { if (this.entries.has(key)) this.remove(key); });
+    contents.on('destroyed', () => { if (this.entries.get(key) === entry) this.remove(key); });
     session.fromPartition(partition).setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
     return entry;
   }
@@ -172,8 +189,45 @@ export class BrowserWindows {
     this.navigate(entry.state.key, url.href);
     return this.focus(key);
   }
+  /** Task tabs render independently; opening or retrying never selects a tab or focuses the host. */
+  openJob(key: string, value: string, sessionKey: string): BrowserState {
+    let entry = this.entries.get(key);
+    if (entry && !entry.backgroundJob) throw new PlatformOperationError('WORKFLOW_REJECTED', '收录标签标识已被占用');
+    if (entry && !entry.offscreen) {
+      if (this.activeKey === key) throw new PlatformOperationError('TARGET_IN_USE', '请返回工作台后继续收录');
+      entry = this.replaceJobView(entry, true);
+    }
+    if (!entry) {
+      const url = this.validateUrl(value);
+      const partition = this.adapterFor(value)?.sessionKey || sessionKey || url.hostname.replace(/[^a-zA-Z0-9_-]/g, '_');
+      entry = this.create(key, 'persist:jd-browser-' + partition, key.startsWith('company-address:') ? '公司地址查询' : 'JD 自动收录', undefined, true, true);
+    }
+    // Every attempt starts from the submitted URL at the top. A resumed task must not
+    // silently start halfway down an offscreen page left over from the previous attempt.
+    this.navigate(key, value);
+    this.layout();
+    this.publish(entry);
+    return {...entry.state};
+  }
+  private replaceJobView(entry: Entry, offscreen: boolean): Entry {
+    const key = entry.state.key;
+    this.entries.delete(key);
+    this.shell.host.contentView.removeChildView(entry.view);
+    const replacement = this.create(key, entry.partition, entry.state.title, undefined, true, offscreen);
+    replacement.revision = entry.revision + 1;
+    replacement.visualEpoch = entry.visualEpoch + 1;
+    entry.view.webContents.close();
+    return replacement;
+  }
   focus(key: string): BrowserState {
-    const entry = key === WORKBENCH_KEY ? undefined : this.require(key);
+    let entry = key === WORKBENCH_KEY ? undefined : this.require(key);
+    if (entry?.offscreen) {
+      // Offscreen contents have no interactive native surface. Hand off to a normal page in
+      // the same persistent session for login/verification; in-flight evidence is invalidated.
+      const url = entry.view.webContents.getURL() || entry.requestedUrl;
+      entry = this.replaceJobView(entry, false);
+      this.navigate(key, url);
+    }
     this.visualEpoch++;
     this.activeKey = key;
     if (this.backgroundWorkflow) this.layout(); else this.show();
@@ -225,6 +279,7 @@ export class BrowserWindows {
       ? steps.find(value => value > current + 0.001) || 3
       : [...steps].reverse().find(value => value < current - 0.001) || 0.5;
     this.visualEpoch++;
+    if (entry) entry.visualEpoch++;
     contents.setZoomFactor(factor);
     if (entry) { this.publish(entry); return {...entry.state}; }
     const state = this.workbenchState(); this.emit(state); return state;
@@ -237,7 +292,7 @@ export class BrowserWindows {
     if (this.host && !this.host.isDestroyed()) this.host.contentView.removeChildView(entry.view);
     const result: BrowserState = {...entry.state, status: 'closed', active: false, message: '标签已关闭，持久化浏览数据保留'};
     this.emit(result);
-    if (this.activeKey === key) this.activeKey = [...this.entries.keys()].at(-1) || WORKBENCH_KEY;
+    if (this.activeKey === key) this.activeKey = [...this.entries.values()].filter(item => !item.offscreen).at(-1)?.state.key || WORKBENCH_KEY;
     if (!this.disposing) { this.layout(); this.emit(this.workbenchState()); for (const item of this.entries.values()) this.publish(item); }
     return result;
   }
@@ -260,23 +315,32 @@ export class BrowserWindows {
     } catch { return undefined; }
   }
   platforms(): PlatformDefinition[] { return this.adapters.map(definition => ({...definition})); }
-  visualTarget(request: CaptureRequest): VisualTarget {
+  visualTarget(request: CaptureRequest, action?: VisualAction['action']): VisualTarget {
     const entry = this.entries.get(request.key);
     if (!entry || entry.view.webContents.isDestroyed()) throw new PlatformOperationError('TAB_NOT_FOUND', '目标平台标签不存在');
     const contents = entry.view.webContents;
     const adapter = this.adapterFor(contents.getURL());
-    if (!adapter || adapter.platform !== request.platform || entry.partition !== 'persist:jd-browser-' + adapter.sessionKey)
+    if (request.platform !== 'WEB' && (!adapter || adapter.platform !== request.platform || entry.partition !== 'persist:jd-browser-' + adapter.sessionKey))
       throw new PlatformOperationError('PLATFORM_MISMATCH', '目标页面和平台不匹配');
     const host = this.ensureHost();
-    if (!host.isVisible() || host.isMinimized() || request.key !== this.activeKey)
+    if (entry.backgroundJob && !entry.offscreen)
+      throw new PlatformOperationError('TARGET_IN_USE', '收录标签已由你打开，请处理网页后返回工作台继续收录');
+    const background = entry.backgroundJob && entry.offscreen;
+    if (background && action && action !== 'scroll')
+      throw new PlatformOperationError('WORKFLOW_REJECTED', '后台收录只允许截图和滚动');
+    if (!background && (!host.isVisible() || host.isMinimized() || request.key !== this.activeKey))
       throw new PlatformOperationError('TARGET_NOT_VISIBLE', '请先打开或返回目标平台标签');
-    if (!this.backgroundWorkflow && !host.isFocused()) throw new PlatformOperationError('TARGET_NOT_FOCUSED', '客户端未聚焦，请重新返回平台');
+    if (!background && !this.backgroundWorkflow && !host.isFocused()) throw new PlatformOperationError('TARGET_NOT_FOCUSED', '客户端未聚焦，请重新返回平台');
     if (contents.isLoadingMainFrame()) throw new PlatformOperationError('READ_BUSY', '页面正在加载，请稍后截图');
     const url = new URL(contents.getURL());
-    for (const key of [...url.searchParams.keys()]) if (!adapter.sourceQueryKeys?.includes(key)) url.searchParams.delete(key);
-    url.hash = ''; url.username = ''; url.password = '';
+    for (const key of [...url.searchParams.keys()]) {
+      if (adapter ? !adapter.sourceQueryKeys?.includes(key) : /^(?:utm_.*|token|access_token|securityId|authorization|cookie|code|state)$/i.test(key)) url.searchParams.delete(key);
+    }
+    if (adapter || /(?:token|authorization|cookie)=/i.test(url.hash)) url.hash = '';
+    url.username = ''; url.password = '';
     const title = contents.getTitle().split('?')[0].replace(/(?:token|securityId|authorization|cookie)\s*[:=]\s*\S+/gi, '[已隐藏]').slice(0, 200);
-    return {view: entry.view, host, revision: entry.revision, epoch: this.visualEpoch, sourceUrl: url.href, title};
+    return {view: entry.view, host, revision: entry.revision, epoch: background ? entry.visualEpoch : this.visualEpoch,
+      background, sourceUrl: url.href, title};
   }
   openPlatform(platform: PlatformCode): BrowserState {
     const adapter = this.adapters.find(item => item.platform === platform);

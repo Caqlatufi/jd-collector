@@ -2,7 +2,6 @@
 import {useAppStore} from '@/common/store/appStore';
 import {
   Briefcase,
-  Calendar,
   Collection,
   DataBoard,
   Files,
@@ -83,10 +82,6 @@ onMounted(() => {
         <el-menu-item index="/pipeline">
           <el-icon><Briefcase /></el-icon>
           <span>投递 Pipeline</span>
-        </el-menu-item>
-        <el-menu-item index="/interviews">
-          <el-icon><Calendar /></el-icon>
-          <span>面试记录</span>
         </el-menu-item>
         <el-menu-item index="/resumes">
           <el-icon><Files /></el-icon>

@@ -53,7 +53,7 @@ public final class PostingKnowledgeDtos {
             Long postingId,
             String companyName,
             String title,
-            PostingEnums.Direction direction,
+            String direction,
             PostingEnums.Tier tier,
             PostingEnums.Stage stage,
             boolean processed,

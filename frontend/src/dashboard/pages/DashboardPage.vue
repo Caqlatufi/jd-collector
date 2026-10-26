@@ -31,7 +31,7 @@ onUnmounted(()=>{clearInterval(refreshTimer);document.removeEventListener('visib
 <template>
   <section v-loading="loading" class="dashboard">
     <div class="hero-card">
-      <div><span class="eyebrow">DAILY SPRINT · 本地求职工作台</span><h2>按计划推进，让每一次沟通都有下一步。</h2><p>用 B/A 档校准回复、简历和报价，材料稳定后集中冲刺 S 档；先处理超期异常，再看今天安排。</p></div>
+      <div><span class="eyebrow">DAILY SPRINT · 本地求职工作台</span><h2>投递自动跟踪，异常及时提醒。</h2><p>点击时间表节点更新进度、安排面试或复盘；超过14天无反馈自动标为超时。</p></div>
       <el-button type="primary" size="large" @click="router.push('/postings')">新增 JD</el-button>
     </div>
     <el-alert v-if="loadError" title="看板刷新失败，以下可能是旧数据。请点击刷新重试。" type="error" :closable="false" show-icon />
@@ -45,7 +45,7 @@ onUnmounted(()=>{clearInterval(refreshTimer);document.removeEventListener('visib
         <div><span>Offer</span><strong>{{ data.conversion.offered }}</strong><small>{{ data.conversion.offerRate }}%</small></div>
       </div>
     </article>
-    <PlanTimeline v-if="data.serverNow" :items="data.planItems || []" :server-now="data.serverNow" />
+    <PlanTimeline v-if="data.serverNow" :items="data.planItems || []" :server-now="data.serverNow" @updated="load" />
     <article class="panel tier-panel">
       <div class="panel-heading"><div><span class="eyebrow">TIERS</span><h3>等级统计</h3></div></div>
       <div class="pipeline-summary dashboard-summary">

@@ -1,0 +1,37 @@
+{
+  "source": "https://download.geofabrik.de/asia/china/shanghai-latest-free.shp.zip",
+  "sourcePage": "https://download.geofabrik.de/asia/china/shanghai.html",
+  "sourceSha256": "ed703bc6576b40079dd80d5dae41b27db84a449cdf6a986e8177e1a7682e3ecb",
+  "archiveRoadsModified": [
+    2026,
+    10,
+    21,
+    2,
+    7,
+    52
+  ],
+  "generatedAt": "2026-10-21T06:04:00.613823+00:00",
+  "crs": "WGS84 / EPSG:4326",
+  "license": "ODbL-1.0",
+  "licenseUrl": "https://www.openstreetmap.org/copyright",
+  "attribution": "© OpenStreetMap contributors / Geofabrik",
+  "featureCount": 176032,
+  "classes": {
+    "living_street": 1495,
+    "motorway": 4473,
+    "motorway_link": 4252,
+    "primary": 14833,
+    "primary_link": 810,
+    "residential": 43227,
+    "secondary": 17225,
+    "secondary_link": 278,
+    "service": 42493,
+    "tertiary": 21913,
+    "tertiary_link": 242,
+    "trunk": 3437,
+    "trunk_link": 1865,
+    "unclassified": 19489
+  },
+  "simplifyToleranceDegrees": 8e-06,
+  "note": "Clipped to bundled Shanghai district polygons; for map display, not a routing graph."
+}

@@ -1,23 +1,33 @@
 export type BusinessType = 'PRODUCT' | 'TO_B_PRODUCT' | 'DELIVERY' | 'OUTSOURCING' | 'UNKNOWN';
 export type ProductOwnership = 'HIGH' | 'MEDIUM' | 'LOW' | 'UNKNOWN';
 export type ResumeType = 'MASTER' | 'AI_APPLICATION' | 'JAVA_BACKEND' | 'FULL_STACK' | 'PLATFORM_ENGINEERING' | 'TARGETED';
-export type Direction = 'JAVA_BACKEND' | 'PLATFORM_BACKEND' | 'AI_APPLICATION' | 'FULL_STACK' | 'AI_TOOLING' | 'TEST_PLATFORM';
+export type Direction = string;
 export type PostingSource = 'BOSS' | 'LIEPIN' | 'OFFICIAL' | 'OTHER';
+export type BossCompetitionStatus = 'AVAILABLE' | 'UNAVAILABLE' | 'CLOSED';
 export type Tier = 'S' | 'A' | 'B' | 'SKIP';
 export type Recommendation = 'DIRECT_APPLY' | 'CONTACT_FIRST' | 'CUSTOM_DEMO' | 'WAIT_HC' | 'SKIP';
-export type Stage = 'COLLECTED' | 'SCREENED' | 'TO_CONTACT' | 'READY_TO_APPLY' | 'APPLIED' | 'HR_SCREEN' | 'WRITTEN_TEST' | 'INTERVIEW' | 'OFFER' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN' | 'CLOSED';
+export type Stage = 'COLLECTED' | 'SCREENED' | 'TO_CONTACT' | 'MESSAGE_SENT' | 'WAITING_COMMUNICATION' | 'CONTACT_NOT_SUITABLE' | 'READY_TO_APPLY' | 'APPLIED' | 'HR_SCREEN' | 'WRITTEN_TEST' | 'INTERVIEW' | 'OFFER' | 'ACCEPTED' | 'REJECTED' | 'WITHDRAWN' | 'CLOSED';
 export type TermPriority = 'HIGH' | 'MEDIUM' | 'LOW';
 export type InterviewType = 'HR' | 'TECHNICAL' | 'MANAGER' | 'FINAL' | 'OTHER';
 export type InterviewFormat = 'ONLINE' | 'ONSITE' | 'PHONE';
 export type InterviewStatus = 'SCHEDULED' | 'COMPLETED' | 'CANCELLED' | 'NO_SHOW';
 
+export interface CompanyWorkLocation {
+  label?: string;
+  address: string;
+  longitude?: number | null;
+  latitude?: number | null;
+}
+
 export interface Company {
   id: number;
   name: string;
   alias?: string;
+  officialApplicationUrl?: string;
   businessType: BusinessType;
   productOwnership: ProductOwnership;
   address?: string;
+  workLocations?: CompanyWorkLocation[];
   commuteMinutes?: number;
   qualityScore?: number;
   notes?: string;
@@ -70,6 +80,12 @@ export interface Posting {
   direction: Direction;
   source: PostingSource;
   sourceUrl?: string;
+  bossRank?: number;
+  bossCompetitorCount?: number;
+  bossSurpassedPercent?: number;
+  bossCompetitionCheckedAt?: string;
+  bossCompetitionStatus?: BossCompetitionStatus;
+  bossCompetitionNote?: string;
   rawJd: string;
   location?: string;
   salaryMinK?: number;
@@ -105,7 +121,7 @@ export interface Posting {
   updatedAt: string;
 }
 
-export type PostingSave = Omit<Posting, 'id' | 'companyName' | 'totalScore' | 'tier' | 'recommendation' | 'stage' | 'resumeVersionId' | 'resumeVersionName' | 'appliedAt' | 'nextAction' | 'nextActionAt' | 'createdAt' | 'updatedAt'> & {
+export type PostingSave = Omit<Posting, 'id' | 'companyName' | 'totalScore' | 'tier' | 'recommendation' | 'stage' | 'resumeVersionId' | 'resumeVersionName' | 'appliedAt' | 'nextAction' | 'nextActionAt' | 'createdAt' | 'updatedAt' | 'bossRank' | 'bossCompetitorCount' | 'bossSurpassedPercent' | 'bossCompetitionCheckedAt' | 'bossCompetitionStatus' | 'bossCompetitionNote'> & {
   tier?: Tier;
   recommendation?: Recommendation;
 };
@@ -256,9 +272,12 @@ export interface DashboardPlanItem {
   companyName: string;
   jobTitle: string;
   tier: Tier;
-  kind: 'FOLLOW_UP' | 'INTERVIEW';
+  kind: 'APPLICATION' | 'FOLLOW_UP' | 'INTERVIEW' | 'STAGE';
   title: string;
   description: string;
   scheduledAt?: string;
-  status: 'PLANNED' | 'OVERDUE' | 'COMPLETED' | 'UNSCHEDULED' | 'NO_SHOW';
+  status: 'PLANNED' | 'OVERDUE' | 'COMPLETED' | 'UNSCHEDULED' | 'NO_SHOW'
+    | 'WAITING_FEEDBACK' | 'FEEDBACK_RECEIVED' | 'NO_FEEDBACK' | 'TIMED_OUT' | 'CANCELLED' | 'ENDED';
+  feedbackDueAt?: string;
+  elapsedDays?: number;
 }

@@ -72,7 +72,7 @@ public class PostingKnowledgeService {
     @Transactional(readOnly = true)
     public List<PostingKnowledgeDtos.PostingOption> options(
             String keyword,
-            Collection<PostingEnums.Direction> directions,
+            Collection<String> directions,
             Collection<PostingEnums.Tier> tiers,
             Collection<PostingEnums.Stage> stages
     ) {
@@ -280,7 +280,7 @@ public class PostingKnowledgeService {
     }
 
     private String sourceHash(JobPosting posting) {
-        String source = String.join("\u001f", safe(posting.getTitle()), posting.getDirection().name(),
+        String source = String.join("\u001f", safe(posting.getTitle()), posting.getDirection(),
                 safe(posting.getRawJd()), safe(posting.getRequiredSkills()), safe(posting.getBonusSkills()));
         try {
             return HexFormat.of().formatHex(MessageDigest.getInstance("SHA-256")

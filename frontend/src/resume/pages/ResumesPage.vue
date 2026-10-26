@@ -5,7 +5,8 @@ import {showRequestError} from '@/common/utils/error';
 import {postingApi} from '@/posting/api/postingApi';
 import {resumeApi} from '@/resume/api/resumeApi';
 import {ElMessage} from 'element-plus';
-import {onMounted, reactive, ref} from 'vue';
+import {onBeforeUnmount, onMounted, reactive, ref} from 'vue';
+import type {ComponentPublicInstance} from 'vue';
 import {useRouter} from 'vue-router';
 
 const router = useRouter();
@@ -17,6 +18,31 @@ const usageVisible = ref(false);
 const usageResume = ref<ResumeVersion>();
 const usageRows = ref<Posting[]>([]);
 const starterLoading = ref(false);
+const expandedNotes = reactive(new Set<number>());
+const overflowingNotes = reactive(new Set<number>());
+const notesElements = new Map<number, HTMLElement>();
+const notesObserver = new ResizeObserver(entries => {
+  for (const entry of entries) {
+    const element = entry.target as HTMLElement;
+    const id = Number(element.dataset.resumeId);
+    if (expandedNotes.has(id)) continue;
+    if (element.scrollHeight > element.clientHeight + 1) overflowingNotes.add(id);
+    else overflowingNotes.delete(id);
+  }
+});
+const observeNotes = (id: number, element: Element | ComponentPublicInstance | null) => {
+  const previous = notesElements.get(id);
+  if (previous === element) return;
+  if (previous) notesObserver.unobserve(previous);
+  if (element instanceof HTMLElement) {
+    notesElements.set(id, element);
+    notesObserver.observe(element);
+  } else notesElements.delete(id);
+};
+const toggleNotes = (id: number) => {
+  if (expandedNotes.has(id)) expandedNotes.delete(id);
+  else expandedNotes.add(id);
+};
 const form = reactive<ResumeSave>({name: '', type: 'JAVA_BACKEND', versionLabel: '', contentMarkdown: '', templateKey: 'CLASSIC_BLUE', photoUrl: '', active: true, notes: ''});
 
 const load = async () => {
@@ -62,6 +88,7 @@ const archive = async (row: ResumeVersion) => {
   finally { archivingId.value = undefined; }
 };
 onMounted(load);
+onBeforeUnmount(() => notesObserver.disconnect());
 </script>
 
 <template>
@@ -76,7 +103,15 @@ onMounted(load);
         <h3>{{ row.name }}</h3>
         <p class="version-label">{{ row.versionLabel }}</p>
         <div class="content-state" :class="{ready: row.contentReady}">{{ row.contentReady ? `Markdown 已就绪 · ${row.blockCount} 块` : '等待迁移 Markdown' }}</div>
-        <p class="resource-notes">{{ row.notes || '暂无版本说明' }}</p>
+        <div class="resume-description" @click.stop @keydown.enter.stop>
+          <p :id="`resume-notes-${row.id}`" :ref="element => observeNotes(row.id, element)"
+             :data-resume-id="row.id" class="resource-notes"
+             :class="{'is-expanded': expandedNotes.has(row.id), 'is-truncated': overflowingNotes.has(row.id) && !expandedNotes.has(row.id)}"
+             :tabindex="expandedNotes.has(row.id) ? 0 : undefined">{{ row.notes || '暂无版本说明' }}</p>
+          <el-button v-if="overflowingNotes.has(row.id) || expandedNotes.has(row.id)" link type="primary"
+                     :aria-expanded="expandedNotes.has(row.id)" :aria-controls="`resume-notes-${row.id}`"
+                     @click="toggleNotes(row.id)">{{ expandedNotes.has(row.id) ? '收缩' : '查看' }}</el-button>
+        </div>
         <div class="card-actions">
           <el-button link @click.stop="showUsage(row)">使用记录</el-button>
           <el-button link @click.stop="router.push(`/resumes/${row.id}/view`)">查看简历</el-button>
@@ -109,9 +144,15 @@ onMounted(load);
 </template>
 
 <style scoped>
+.card-grid { align-items: start; }
 .resume-card { cursor: pointer; transition: transform .16s ease, box-shadow .16s ease; }
 .resume-card:hover, .resume-card:focus-visible { transform: translateY(-2px); box-shadow: 0 16px 34px rgba(23, 50, 42, .12); outline: none; }
 .content-state { padding: 10px 12px; border-radius: 10px; color: #8b5a12; background: #fff4dc; font-size: 13px; }
 .content-state.ready { color: #246246; background: #edf8f1; }
+.resume-description { margin-top: 12px; cursor: default; }
+.resume-description .resource-notes { margin: 0; max-height: 120px; overflow: hidden; white-space: pre-line; overflow-wrap: anywhere; }
+.resume-description .resource-notes.is-truncated { mask-image: linear-gradient(to bottom, #000 calc(100% - 24px), transparent); }
+.resume-description .resource-notes.is-expanded { max-height: 320px; overflow-y: auto; }
+.resume-description .el-button { margin-top: 6px; }
 .card-actions { margin-top: auto; }
 </style>

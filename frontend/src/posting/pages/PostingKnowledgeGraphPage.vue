@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import {loadDirectionOptions} from '@/common/api/directions';
 import type {Direction, PostingKnowledgeGraph, PostingKnowledgeOption, Stage, Tier} from '@/common/model/domain';
 import {directionOptions, labelOf, stageOptions, tierOptions} from '@/common/model/options';
 import {showRequestError} from '@/common/utils/error';
@@ -47,6 +48,7 @@ const selectionTitle = computed(() => {
 const loadOptions = async () => {
   loadingOptions.value = true;
   try {
+    await loadDirectionOptions();
     const rows = await postingKnowledgeApi.options();
     options.value = rows;
     if (!initialized.value) {

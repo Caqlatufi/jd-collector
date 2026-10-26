@@ -78,7 +78,7 @@ const resolvedPhotoUrl = computed(() => {
 
   > blockquote + ul {
     width: calc(100% - 38mm);
-    min-height: 20mm;
+    min-height: 15.5mm;
     margin: 2mm 0 0;
     padding: 0;
     display: flex;

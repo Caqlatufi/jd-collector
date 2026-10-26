@@ -99,8 +99,12 @@ Gradle/JUnit 在部分中文路径下存在兼容问题。可在 `local/env.json
 不得在代码、文档、提交信息或沟通中回显明文密码。数据库结构由 JPA `ddl-auto=update` 管理，当前业务表为：
 
 - `jd_company`
+- `jd_company_work_location`
+- `jd_company_location_cache`
+- `jd_company_address_discovery`
 - `jd_resume_version`
 - `jd_posting`
+- `jd_posting_greeting`
 - `jd_stage_event`
 - `jd_interview`
 - `jd_resume_content_block`
@@ -161,10 +165,16 @@ Gradle/JUnit 在部分中文路径下存在兼容问题。可在 `local/env.json
 - 筛选或采集JD前通过 GET `/api/criteria` 读取当前有效门槛（默认 `local/JD门槛.json`）：`baselineRules` 保留原有已确认前提，`agentNotes` 保留采集证据与操作边界；`sections[].fields[]` 为精简问卷答案。非空且 `status=CONFIRMED` 的答案生效，空白、PENDING 和选项本身不代表接受或拒绝。用户保存即确认已填写内容，页面不再要求逐项勾选或指定性质；`kind` 只作兼容参考，按答案明确语义判断，不把可协商选项误作硬条件。新答案如明确调整基础条件，以用户最新保存的明确表述为准。页面与 Agent 共用此 JSON，不维护 Markdown 副本，不自动重评、删岗或投递。
 - JD门槛由独立 criteria 模块维护，页面位于 `/criteria`。配置 `jd-collector.criteria-file` 可指定文件，默认读取项目 `local/JD门槛.json`，环境变量 `JD_COLLECTOR_CRITERIA_FILE` 可覆盖；保存先核对版本并备份到门槛文件同级的 `backups/criteria`，再原子替换。Agent 优先通过 GET/PUT `/api/criteria` 更新答案以使用版本校验，需改结构时读取最新文件并避免与表单并行编辑。不要将此文件放进前端产物或数据库生成第二份有效来源。
 - 用户用自然语言提出岗位条件；不要要求其选择标签、检查登录、读取或转草稿。本人只负责平台网页内登录及验证码。
-- 当前采集只使用 BOSS，统一读取 [BOSS SOP](.agents/skills/jd-boss/SKILL.md)；按该流程完成筛选、批次识别、集中复核与归档。
+- 平台列表筛选与批次采集当前使用 BOSS，读取 [BOSS SOP](.agents/skills/jd-boss/SKILL.md)。用户“新增 JD”粘贴链接为通用 HTTPS 单岗位流程，覆盖招聘网站及企业官网，通过 LangGraph、WEB 后台原生截图/滚动和 [链接收录 Prompt](.agents/skills/jd-import-prompt.md) 核对页面有效性、完整性后评分归档；不要求未知网站套用 BOSS 页面布局。
 - Agent 入口为 `frontend/src/app/electron/workflow.mjs`，复用正常 Electron 会话。JD图片识别核心默认为 `gpt-6-astra` / `medium`，标准Prompt见 [.agents/skills/jd-vision-prompt.md](.agents/skills/jd-vision-prompt.md)。模型配置必须由主Agent实际指定，不只写在任务正文。
 - BOSS 的筛选、批次采集、集中复核和归档统一遵循 [BOSS 采集 SOP](.agents/skills/jd-boss/SKILL.md)；公共原生操作与保存契约见 [公共规则](.agents/skills/platform-workflow.md)。本文件不复制平台步骤。当前条件读取 criteria API，本轮覆盖与断点读取对应平台任务单；接续文件只作摘要，历史验收不作为当前任务。
 - backend/recognition每5秒扫描，默认并发2组，独立Codex CLI默认Astra/medium，以用户本地配置为准；主Agent继续操作并集中处理结果。状态与结果见 `/api/recognition/tasks`，运行中任务不重复启动。初筛结果是文件候选记录，不自动写正式JD；新增仍为SCREENED，不投递、不联系HR、不排期。
 - 用户已选择截图主链路；原生 capture/scroll/click/type/key 已实现，旧 inspect/read/diagnose 返回 WORKFLOW_DEPRECATED，正文DOM/字体提取代码已移除。真实网站必须使用原生PNG证据，按平台Skill逐步操作，不静默回退DOM。禁止任意脚本或全权限调试端口。
 - `node dist-electron/review.cjs <task.json> <result.json>` 只读校验图片哈希/尺寸、识别协议和证据完整性；通过不代表业务门槛已满足。BOSS 单岗位真实详情已于2026-09-09通过Astra/medium及独立H2的HTTP保存/查重/回读，详细范围见docs/04，不能外推为全站或所有岗位已符合条件。
 - 本地连接清单位于 userData，包含通信令牌，不打印、不提交、不当作招聘平台认证；不能把它返回给网页。
+
+## MCP 操作入口
+
+- `ops/mcp/server.mjs` 为标准 stdio MCP，工具与连接方式见[接口说明](ops/mcp/README.md)、[功能文档](docs/18-MCP操作接口.md)。Agent 可通过 `node ops/mcp/call.mjs <工具名> --file <UTF-8参数文件>` 诊断调用；图像只返回 MCP 图像内容及原生 PNG 引用，不在终端打印 base64。
+- `WEB` 为通用网页目标，复用同一个本地 workflow、BrowserWindows 与 VisualCapture，不加入业务平台/岗位来源枚举。招聘平台专用流程保持原有平台约束。通用网页读取同样只用原生截图，动作绑定最新截图，不增加脚本执行、DOM、调试端口或系统鼠标能力。
+- 当前 MCP 开放网页标签/截图/页内搜索操作，以及岗位、公司、投递历史、面试和门槛查询。后台操作沿用 `JD_DESKTOP_BACKGROUND_WORKFLOW=true`；客户端旧进程返回 `DESKTOP_UPDATE_REQUIRED`，保存未完成输入并重启正常客户端后接续，不能以编译成功冒充进程已升级。

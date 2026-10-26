@@ -11,6 +11,7 @@ import com.jd.common.persistence.BaseEntity;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.math.BigDecimal;
 
 @Getter
 @Setter
@@ -24,9 +25,8 @@ public class JobPosting extends BaseEntity {
     @Column(nullable = false, length = 160)
     private String title;
 
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false, length = 40)
-    private PostingEnums.Direction direction;
+    @Column(nullable = false, length = 40, columnDefinition = "varchar(40)")
+    private String direction;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 30)
@@ -34,6 +34,24 @@ public class JobPosting extends BaseEntity {
 
     @Column(length = 1000)
     private String sourceUrl;
+
+    private Integer bossRank;
+    private Integer bossCompetitorCount;
+
+    @Column(precision = 5, scale = 2)
+    private BigDecimal bossSurpassedPercent;
+
+    private LocalDateTime bossCompetitionCheckedAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(length = 20)
+    private PostingEnums.BossCompetitionStatus bossCompetitionStatus;
+
+    @Column(length = 500)
+    private String bossCompetitionNote;
+
+    @Column(length = 1000)
+    private String bossCompetitionEvidencePath;
 
     @Column(nullable = false, columnDefinition = "TEXT")
     private String rawJd;

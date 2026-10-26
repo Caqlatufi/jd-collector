@@ -13,6 +13,8 @@ public interface InterviewRepository extends JpaRepository<Interview, Long> {
 
     List<Interview> findAllByDeletedFalseOrderByScheduledAtAsc();
 
+    List<Interview> findAllByJobPostingIdAndDeletedFalseOrderByScheduledAtAsc(Long jobPostingId);
+
     List<Interview> findAllByDeletedFalseAndScheduledAtBetweenOrderByScheduledAtAsc(
             LocalDateTime from,
             LocalDateTime to

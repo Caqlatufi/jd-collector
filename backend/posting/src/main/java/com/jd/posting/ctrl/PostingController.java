@@ -28,15 +28,16 @@ public class PostingController {
     @GetMapping
     public RestPageResultResponse<PostingDtos.Response> search(
             @RequestParam(defaultValue = "") String keyword,
-            @RequestParam(required = false) List<PostingEnums.Direction> direction,
+            @RequestParam(required = false) List<String> direction,
             @RequestParam(required = false) List<PostingEnums.Tier> tier,
             @RequestParam(required = false) List<PostingEnums.Stage> stage,
             @RequestParam(required = false) Long companyId,
             @RequestParam(required = false) Long resumeVersionId,
+            @RequestParam(defaultValue = "SCORE") PostingEnums.SortBy sortBy,
             @RequestParam(defaultValue = "1") int number,
             @RequestParam(defaultValue = "20") int size
     ) {
-        return RestPageResultResponse.of(service.search(keyword, direction, tier, stage, companyId, resumeVersionId, number, size));
+        return RestPageResultResponse.of(service.search(keyword, direction, tier, stage, companyId, resumeVersionId, sortBy, number, size));
     }
 
     @GetMapping("/{id}")
@@ -60,5 +61,35 @@ public class PostingController {
             @Valid @RequestBody PostingDtos.SaveRequest request
     ) {
         return RestResultResponse.of(service.update(id, request));
+    }
+
+    @PutMapping("/{id}/archive")
+    public RestResultResponse<Boolean> archive(@PathVariable Long id) {
+        service.archive(id);
+        return RestResultResponse.of(true);
+    }
+
+    @PutMapping("/{id}/commute")
+    public RestResultResponse<PostingDtos.Response> updateCommute(
+            @PathVariable Long id,
+            @Valid @RequestBody PostingDtos.CommuteRequest request
+    ) {
+        return RestResultResponse.of(service.updateCommute(id, request));
+    }
+
+    @PutMapping("/{id}/boss-competition")
+    public RestResultResponse<PostingDtos.Response> updateBossCompetition(
+            @PathVariable Long id,
+            @Valid @RequestBody PostingDtos.BossCompetitionRequest request
+    ) {
+        return RestResultResponse.of(service.updateBossCompetition(id, request));
+    }
+
+    @PutMapping("/{id}/source-url")
+    public RestResultResponse<PostingDtos.Response> updateSourceUrl(
+            @PathVariable Long id,
+            @Valid @RequestBody PostingDtos.SourceUrlRequest request
+    ) {
+        return RestResultResponse.of(service.updateSourceUrl(id, request));
     }
 }

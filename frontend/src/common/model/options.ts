@@ -1,3 +1,4 @@
+import {reactive} from 'vue';
 import type {Direction, InterviewFormat, InterviewStatus, InterviewType, PostingSource, Recommendation, ResumeType, Stage, Tier} from './domain';
 
 export interface Option<T extends string> {
@@ -5,14 +6,7 @@ export interface Option<T extends string> {
   label: string;
 }
 
-export const directionOptions: Option<Direction>[] = [
-  {value: 'JAVA_BACKEND', label: 'Java 后端'},
-  {value: 'PLATFORM_BACKEND', label: '平台后端'},
-  {value: 'AI_APPLICATION', label: 'AI 应用'},
-  {value: 'FULL_STACK', label: '全栈'},
-  {value: 'AI_TOOLING', label: 'AI 工具'},
-  {value: 'TEST_PLATFORM', label: '测试平台开发'},
-];
+export const directionOptions = reactive<Option<Direction>[]>([]);
 
 export const sourceOptions: Option<PostingSource>[] = [
   {value: 'BOSS', label: 'BOSS 直聘'}, {value: 'LIEPIN', label: '猎聘'},
@@ -33,12 +27,20 @@ export const recommendationOptions: Option<Recommendation>[] = [
 export const stageOptions: Option<Stage>[] = [
   {value: 'COLLECTED', label: '已收集'}, {value: 'SCREENED', label: '已筛选'},
   {value: 'TO_CONTACT', label: '待沟通'}, {value: 'READY_TO_APPLY', label: '待投递'},
+  {value: 'MESSAGE_SENT', label: '已发消息未回复'},
+  {value: 'WAITING_COMMUNICATION', label: '等待进一步沟通'},
+  {value: 'CONTACT_NOT_SUITABLE', label: '已沟通不合适'},
   {value: 'APPLIED', label: '已投递'}, {value: 'HR_SCREEN', label: 'HR 沟通'},
   {value: 'WRITTEN_TEST', label: '笔试'}, {value: 'INTERVIEW', label: '面试'},
   {value: 'OFFER', label: 'Offer'}, {value: 'ACCEPTED', label: '已接受'},
   {value: 'REJECTED', label: '被拒'}, {value: 'WITHDRAWN', label: '主动终止'},
   {value: 'CLOSED', label: '已关闭'},
 ];
+
+export const contactStageOptions = stageOptions.filter(item => [
+  'COLLECTED', 'SCREENED', 'TO_CONTACT', 'MESSAGE_SENT', 'WAITING_COMMUNICATION',
+  'CONTACT_NOT_SUITABLE', 'READY_TO_APPLY', 'CLOSED',
+].includes(item.value));
 
 export const resumeTypeOptions: Option<ResumeType>[] = [
   {value: 'MASTER', label: '标准 Master'}, {value: 'AI_APPLICATION', label: 'AI 应用版'},

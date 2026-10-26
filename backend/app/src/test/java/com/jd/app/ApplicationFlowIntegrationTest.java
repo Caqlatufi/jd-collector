@@ -88,7 +88,10 @@ class ApplicationFlowIntegrationTest {
         assertThat(response.get("serverNow").asText()).startsWith(now.toLocalDate().toString());
         java.util.Map<String, JsonNode> plans = new java.util.HashMap<>();
         response.get("planItems").forEach(p -> plans.put(p.get("id").asText(), p));
-        assertThat(plans).hasSize(6);
+        assertThat(plans).hasSize(13);
+        assertThat(plans.get("application-" + ids[0]).get("status").asText()).isEqualTo("WAITING_FEEDBACK");
+        assertThat(plans.get("application-" + ids[3]).get("status").asText()).isEqualTo("ENDED");
+        assertThat(plans).containsKey("application-" + ids[5]).doesNotContainKey("application-" + ids[4]);
         assertThat(plans.get("action-" + ids[0]).get("status").asText()).isEqualTo("PLANNED");
         assertThat(plans.get("action-" + ids[0]).get("scheduledAt").asText()).startsWith(now.plusMonths(1).toLocalDate().toString());
         assertThat(plans.get("action-" + ids[1]).get("status").asText()).isEqualTo("OVERDUE");
@@ -96,7 +99,8 @@ class ApplicationFlowIntegrationTest {
         assertThat(plans.get("interview-" + interviewIds.get(0)).get("status").asText()).isEqualTo("OVERDUE");
         assertThat(plans.get("interview-" + interviewIds.get(1)).get("status").asText()).isEqualTo("COMPLETED");
         assertThat(plans.get("interview-" + interviewIds.get(3)).get("status").asText()).isEqualTo("NO_SHOW");
-        assertThat(plans).doesNotContainKeys("action-" + ids[6], "interview-" + interviewIds.get(2));
+        assertThat(plans).doesNotContainKey("action-" + ids[6]);
+        assertThat(plans.get("interview-" + interviewIds.get(2)).get("status").asText()).isEqualTo("CANCELLED");
         assertThat(interviewRepository.findByIdAndDeletedFalse(interviewIds.get(0)).orElseThrow().getStatus())
                 .isEqualTo(com.jd.interview.model.InterviewEnums.Status.SCHEDULED);
         assertThat(postingRepository.findByIdAndDeletedFalse(ids[1]).orElseThrow().getStage())
@@ -328,7 +332,9 @@ class ApplicationFlowIntegrationTest {
                 .andExpect(jsonPath("$.result[0].fromStage").value("SCREENED"))
                 .andExpect(jsonPath("$.result[0].toStage").value("APPLIED"));
         mockMvc.perform(get("/api/dashboard/today"))
-                .andExpect(jsonPath("$.result.planItems.length()").value(0));
+                .andExpect(jsonPath("$.result.planItems.length()").value(1))
+                .andExpect(jsonPath("$.result.planItems[0].kind").value("APPLICATION"))
+                .andExpect(jsonPath("$.result.planItems[0].status").value("WAITING_FEEDBACK"));
 
         mockMvc.perform(put("/api/postings/{id}/stage", postingId)
                         .contentType(MediaType.APPLICATION_JSON)

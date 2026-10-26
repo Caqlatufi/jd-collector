@@ -16,5 +16,9 @@ logging:
     root: WARN
 
 jd-collector:
+  company-address:
+    enabled: false
+  posting-import:
+    enabled: false
   recognition:
     enabled: false

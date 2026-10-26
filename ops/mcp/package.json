@@ -1,0 +1,9 @@
+{
+  "name": "jd-collector-mcp",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {"start": "node server.mjs", "test": "node --test test/server.test.mjs"},
+  "dependencies": {"@modelcontextprotocol/sdk": "1.32.1", "zod": "3.25.76"},
+  "overrides": {"@hono/node-server": "^1.19.9"}
+}

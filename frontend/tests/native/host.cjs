@@ -59,7 +59,9 @@ process.on('message', async message => {
       case 'route': guardSession(contents.session); break;
       case 'init': initScripts.set(contents.id, [...(initScripts.get(contents.id) || []), message.source]); break;
       case 'input': {
-        const window = BrowserWindow.getAllWindows()[0]; window.show(); window.focus(); contents.focus();
+        const window = BrowserWindow.getAllWindows()[0];
+        if (!process.env.JD_TEST_OFFSCREEN) { window.show(); window.focus(); }
+        contents.focus();
         if (message.text !== undefined) {
           contents.sendInputEvent({type: 'keyDown', keyCode: 'A', modifiers: ['control']});
           contents.sendInputEvent({type: 'keyUp', keyCode: 'A', modifiers: ['control']});
@@ -104,7 +106,9 @@ if (process.env.JD_TEST_DESKTOP_ENTRY) {
 }
 else app.whenReady().then(() => {
   guardSession(session.defaultSession);
-  const window = new BrowserWindow({width: 1000, height: 1440, show: true,
-    webPreferences: {sandbox: true, contextIsolation: true, nodeIntegration: false}});
+  const window = new BrowserWindow({width: 1000, height: 1440, show: !process.env.JD_TEST_OFFSCREEN,
+    // Local fixture assertions must keep rendering when another app covers the test window.
+    webPreferences: {sandbox: true, contextIsolation: true, nodeIntegration: false, backgroundThrottling: false,
+      offscreen: Boolean(process.env.JD_TEST_OFFSCREEN)}});
   window.loadURL('about:blank');
 });
